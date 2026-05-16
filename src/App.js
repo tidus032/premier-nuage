@@ -97,19 +97,18 @@ function App() {
   const t = translations[language];
 
   // Initialiser l'appli
-  useEffect(() => {
+useEffect(() => {
     const savedUser = localStorage.getItem('premiernuage_user');
     if (savedUser) {
       const userData = JSON.parse(savedUser);
       setUser(userData);
-      loadFamily(userData.id);
     }
   }, []);
 
   // Charger la famille
-  const loadFamily = async (parentId) => {
+const loadFamily = async (parentId) => {
     try {
-      const { data, error } = await supabase
+      const { data, error: err } = await supabase
         .from('families')
         .select('*')
         .eq('parent_id', parentId)
