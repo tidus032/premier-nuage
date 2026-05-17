@@ -469,7 +469,7 @@ function App() {
     setLoading(false);
   };
 
-  // ===== ADD PHOTO =====
+// ===== ADD PHOTO =====
   const handleAddPhoto = async (e) => {
     e.preventDefault();
     if (!selectedChild) return;
@@ -490,33 +490,30 @@ function App() {
       // Générer un nom de fichier unique et sécurisé
       const fileName = `${selectedChild.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
-      // Upload le fichier sur Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase
+      // Upload le fichier sur Supabase Storage - C'EST TOUT
+      const { data, error } = await supabase
         .storage
         .from('photos')
-        .upload(fileName, file, { upsert: false });
+        .upload(fileName, file);
 
-      if (uploadError) throw uploadError;
+      if (error) throw error;
 
-      // Créer l'objet photo SANS passer par la base (juste en mémoire)
+      // Créer l'objet photo EN MÉMOIRE SEULEMENT (pas d'insert en base)
       const newPhoto = {
         id: Math.random().toString(36),
-        child_id: selectedChild.id,
-        uploaded_by: user.id,
-        caption: caption || null,
-        photo_date: photoDate,
         file_path: fileName,
-        uploaded_at: new Date().toISOString(),
+        caption: caption || 'Sans titre',
+        photo_date: photoDate || new Date().toLocaleDateString(),
       };
 
       // Ajouter à la liste locale
       setPhotos([newPhoto, ...photos]);
 
       e.target.reset();
-      alert('Photo ajoutée avec succès !');
+      alert('✅ Photo ajoutée avec succès !');
     } catch (err) {
       console.error('Erreur upload:', err);
-      alert('Erreur : ' + err.message);
+      alert('❌ Erreur : ' + err.message);
     }
     setLoading(false);
   };
