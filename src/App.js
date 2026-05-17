@@ -574,6 +574,7 @@ function App() {
 
 <form onSubmit={handleAddPhoto} className="photo-form">
   <input type="text" name="caption" placeholder={t.caption} />
+  <input type="file" name="photo" accept="image/*,video/*" required />
   <button type="submit" disabled={loading}>{t.upload}</button>
 </form>
 
