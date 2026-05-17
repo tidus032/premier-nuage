@@ -522,11 +522,8 @@ function App() {
       setPhotos([newPhoto, ...photos]);
 
       e.target.reset();
+      // Ne pas appeler loadPhotos car on stocke en local maintenant
       alert('Photo ajoutée avec succès !');
-    } catch (err) {
-      console.error('Erreur upload:', err);
-      alert('Erreur : ' + err.message);
-    }
     setLoading(false);
   };
 
