@@ -503,25 +503,25 @@ function App() {
       const { data: uploadData, error: uploadError } = await supabase
         .storage
         .from('photos')
-        .upload(fileName, file);
+        .upload(fileName, file, { upsert: false });
 
       if (uploadError) throw uploadError;
 
-      // Enregistrer les métadonnées en base (avec le file_path)
-      const { error: dbError } = await supabase
-        .from('photos')
-        .insert({
-          child_id: selectedChild.id,
-          uploaded_by: user.id,
-          caption: caption || null,
-          photo_date: photoDate,
-          file_path: fileName,  // ← C'est la clé : utiliser fileName directement
-        });
+      // Créer l'objet photo SANS passer par la base (juste en mémoire)
+      const newPhoto = {
+        id: Math.random().toString(36),
+        child_id: selectedChild.id,
+        uploaded_by: user.id,
+        caption: caption || null,
+        photo_date: photoDate,
+        file_path: fileName,
+        uploaded_at: new Date().toISOString(),
+      };
 
-      if (dbError) throw dbError;
+      // Ajouter à la liste locale
+      setPhotos([newPhoto, ...photos]);
 
       e.target.reset();
-      loadPhotos(selectedChild.id);
       alert('Photo ajoutée avec succès !');
     } catch (err) {
       console.error('Erreur upload:', err);
