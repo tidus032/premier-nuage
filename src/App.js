@@ -168,7 +168,7 @@ function App() {
       }
 
       const caption = (e.target.caption?.value || '').trim();
-      const fileName = `${family.id}/${Date.now()}_${file.name}`;
+      const fileName = `${family.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
       const { data: uploadData, error: uploadError } = await supabase
         .storage
