@@ -6,7 +6,12 @@ import './App.css';
 
 const SUPABASE_URL = 'https://wxhcynlcjjdjptoxijhc.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_CBfT-JEpCtklOhPgj6T1Zw_1wOr4a4k';
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Configuration Supabase avec authentification
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: false,
+  },
+});
 
 const translations = {
   fr: {
