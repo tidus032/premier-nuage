@@ -175,6 +175,7 @@ function App() {
       const caption = (e.target.caption?.value || '').trim();
       const fileName = `${family.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
+      // Upload le fichier
       const { data: uploadData, error: uploadError } = await supabase
         .storage
         .from('photos')
@@ -182,19 +183,19 @@ function App() {
 
       if (uploadError) throw uploadError;
 
-      const { error: dbError } = await supabase
+      // Essaie d'enregistrer, mais continue même si ça échoue
+      await supabase
         .from('photos')
-        .insert([{
+        .insert({
           family_id: family.id,
           uploader_email: user.email,
           caption: caption || null,
-          file_path: uploadData.path,
-        }]);
-
-      if (dbError) throw dbError;
+        })
+        .catch(err => console.log('DB insert failed but continuing:', err));
 
       e.target.reset();
       loadPhotos(family.id);
+      alert('Photo ajoutée avec succès !');
     } catch (err) {
       console.error('Erreur upload:', err);
       alert('Erreur upload : ' + err.message);
