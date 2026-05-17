@@ -336,15 +336,6 @@ function App() {
     setChildren(data || []);
   };
 
-  const loadPhotos = async (childId) => {
-    const { data } = await supabase
-      .from('photos')
-      .select('*')
-      .eq('child_id', childId)
-      .order('uploaded_at', { ascending: false });
-    setPhotos(data || []);
-  };
-
   const loadAccessRequests = async (childId) => {
     const { data } = await supabase
       .from('access_requests')
@@ -522,8 +513,11 @@ function App() {
       setPhotos([newPhoto, ...photos]);
 
       e.target.reset();
-      // Ne pas appeler loadPhotos car on stocke en local maintenant
       alert('Photo ajoutée avec succès !');
+    } catch (err) {
+      console.error('Erreur upload:', err);
+      alert('Erreur : ' + err.message);
+    }
     setLoading(false);
   };
 
@@ -715,7 +709,7 @@ function App() {
             {children.map(child => (
               <div key={child.id} className="child-card" onClick={() => {
                 setSelectedChild(child);
-                loadPhotos(child.id);
+                setPhotos([]);
                 loadAccessRequests(child.id);
                 loadChildAccess(child.id);
                 setView('parent-child');
@@ -989,7 +983,7 @@ function App() {
               children.map(child => (
                 <div key={child.id} className="child-card" onClick={() => {
                   setSelectedChild(child);
-                  loadPhotos(child.id);
+                  setPhotos([]);
                   setView('relative-photos');
                 }} style={{cursor: 'pointer'}}>
                   {child.profile_picture && <img src={child.profile_picture} alt={child.name} style={{width: '50px', height: '50px', borderRadius: '50%'}} />}
