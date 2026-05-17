@@ -11,6 +11,36 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false },
 });
 
+// Composant pour afficher les photos avec URL signée
+function PhotoDisplay({ filePath }) {
+  const [url, setUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadSignedUrl = async () => {
+      try {
+        const { data, error } = await supabase
+          .storage
+          .from('photos')
+          .createSignedUrl(filePath, 3600);
+
+        if (error) throw error;
+        setUrl(data.signedUrl);
+      } catch (err) {
+        console.error('Erreur:', err);
+      }
+      setLoading(false);
+    };
+
+    loadSignedUrl();
+  }, [filePath]);
+
+  if (loading) return <p>Chargement...</p>;
+  if (!url) return <p>Impossible de charger la photo</p>;
+
+  return <img src={url} alt="photo" style={{width: '100%', borderRadius: '8px', maxHeight: '400px', objectFit: 'cover'}} />;
+}
+
 const translations = {
   fr: {
     appTitle: 'Premier Nuage',
@@ -455,24 +485,46 @@ function App() {
 
     setLoading(true);
     try {
+      const fileInput = e.target.querySelector('input[type="file"]');
+      const file = fileInput?.files[0];
       const caption = (e.target.caption?.value || '').trim();
       const photoDate = e.target.photoDate?.value || null;
 
-      const { error } = await supabase
+      if (!file) {
+        alert('Veuillez sélectionner un fichier');
+        setLoading(false);
+        return;
+      }
+
+      // Générer un nom de fichier unique et sécurisé
+      const fileName = `${selectedChild.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+
+      // Upload le fichier sur Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase
+        .storage
+        .from('photos')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // Enregistrer les métadonnées en base
+      const { error: dbError } = await supabase
         .from('photos')
         .insert({
           child_id: selectedChild.id,
           uploaded_by: user.id,
           caption: caption || null,
           photo_date: photoDate,
+          file_path: uploadData.path,
         });
 
-      if (error) throw error;
+      if (dbError) throw dbError;
 
       e.target.reset();
       loadPhotos(selectedChild.id);
-      alert('Photo ajoutée !');
+      alert('Photo ajoutée avec succès !');
     } catch (err) {
+      console.error('Erreur upload:', err);
       alert('Erreur : ' + err.message);
     }
     setLoading(false);
@@ -692,19 +744,45 @@ function App() {
         <div className="form-container">
           <h2>Créer un enfant</h2>
           <form onSubmit={handleCreateChild}>
+            <label>{t.name}</label>
             <input type="text" placeholder={t.name} value={formData.childName} onChange={(e) => setFormData({...formData, childName: e.target.value})} required />
+            
+            <label>{t.lastName}</label>
             <input type="text" placeholder={t.lastName} value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} />
+            
+            <label>{t.birthDate}</label>
             <input type="date" value={formData.birthDate} onChange={(e) => setFormData({...formData, birthDate: e.target.value})} required />
+            
+            <label>{t.bio}</label>
             <textarea placeholder={t.bio} value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} />
+            
+            <label>{t.parent1}</label>
             <input type="text" placeholder={t.parent1} value={formData.parent1Name} onChange={(e) => setFormData({...formData, parent1Name: e.target.value})} />
+            
+            <label>{t.parent2}</label>
             <input type="text" placeholder={t.parent2} value={formData.parent2Name} onChange={(e) => setFormData({...formData, parent2Name: e.target.value})} />
+            
+            <label>{t.weight}</label>
             <input type="number" placeholder={t.weight} value={formData.weight} onChange={(e) => setFormData({...formData, weight: e.target.value})} />
+            
+            <label>{t.height}</label>
             <input type="number" placeholder={t.height} value={formData.height} onChange={(e) => setFormData({...formData, height: e.target.value})} />
+            
+            <label>{t.bloodType}</label>
             <input type="text" placeholder={t.bloodType} value={formData.bloodType} onChange={(e) => setFormData({...formData, bloodType: e.target.value})} />
+            
+            <label>{t.eyeColor}</label>
             <input type="text" placeholder={t.eyeColor} value={formData.eyeColor} onChange={(e) => setFormData({...formData, eyeColor: e.target.value})} />
+            
+            <label>{t.hairColor}</label>
             <input type="text" placeholder={t.hairColor} value={formData.hairColor} onChange={(e) => setFormData({...formData, hairColor: e.target.value})} />
+            
+            <label>{t.allergies}</label>
             <input type="text" placeholder={t.allergies} value={formData.allergies} onChange={(e) => setFormData({...formData, allergies: e.target.value})} />
+            
+            <label>{t.profilePicture}</label>
             <input type="text" placeholder={t.profilePicture} value={formData.profilePicture} onChange={(e) => setFormData({...formData, profilePicture: e.target.value})} />
+            
             <button type="submit" disabled={loading}>{t.create}</button>
           </form>
           <button onClick={() => setView('parent-dashboard')}>← Retour</button>
@@ -816,15 +894,16 @@ function App() {
 
           <form onSubmit={handleAddPhoto} className="photo-form">
             <input type="text" name="caption" placeholder={t.caption} />
-            <input type="file" name="photo" accept="image/*,video/*" />
+            <input type="file" name="photo" accept="image/*,video/*" required />
             <input type="date" name="photoDate" placeholder={t.photoDate} />
             <button type="submit" disabled={loading}>{t.upload}</button>
           </form>
 
           <div className="photos-list">
             {photos.map(photo => (
-              <div key={photo.id} className="photo-card">
-                <p><strong>{photo.caption || 'Sans titre'}</strong></p>
+              <div key={photo.id} className="photo-card" style={{border: '1px solid #ddd', padding: '15px', margin: '10px 0', borderRadius: '8px'}}>
+                {photo.file_path && <PhotoDisplay filePath={photo.file_path} />}
+                <p style={{marginTop: '10px'}}><strong>{photo.caption || 'Sans titre'}</strong></p>
                 {photo.photo_date && <p>{new Date(photo.photo_date).toLocaleDateString()}</p>}
               </div>
             ))}
@@ -999,8 +1078,9 @@ function App() {
           <div className="photos-list" style={{marginTop: '20px'}}>
             {photos && photos.length > 0 ? (
               photos.map(photo => (
-                <div key={photo.id} className="photo-card">
-                  <p><strong>{photo.caption || 'Sans titre'}</strong></p>
+                <div key={photo.id} className="photo-card" style={{border: '1px solid #ddd', padding: '15px', margin: '10px 0', borderRadius: '8px'}}>
+                  {photo.file_path && <PhotoDisplay filePath={photo.file_path} />}
+                  <p style={{marginTop: '10px'}}><strong>{photo.caption || 'Sans titre'}</strong></p>
                   {photo.photo_date && <p>{new Date(photo.photo_date).toLocaleDateString()}</p>}
                 </div>
               ))
