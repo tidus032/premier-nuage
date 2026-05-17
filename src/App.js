@@ -11,34 +11,20 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false },
 });
 
-// Composant pour afficher les photos avec URL signée
+// Composant pour afficher les photos directement du bucket public
 function PhotoDisplay({ filePath }) {
-  const [url, setUrl] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const loadSignedUrl = async () => {
-      try {
-        const { data, error } = await supabase
-          .storage
-          .from('photos')
-          .createSignedUrl(filePath, 3600);
-
-        if (error) throw error;
-        setUrl(data.signedUrl);
-      } catch (err) {
-        console.error('Erreur:', err);
-      }
-      setLoading(false);
-    };
-
-    loadSignedUrl();
-  }, [filePath]);
-
-  if (loading) return <p>Chargement...</p>;
-  if (!url) return <p>Impossible de charger la photo</p>;
-
-  return <img src={url} alt="photo" style={{width: '100%', borderRadius: '8px', maxHeight: '400px', objectFit: 'cover'}} />;
+  const imageUrl = `https://wxhcynlcjjdjptoxijhc.supabase.co/storage/v1/object/public/photos/${filePath}`;
+  
+  return (
+    <img 
+      src={imageUrl} 
+      alt="photo" 
+      style={{width: '100%', borderRadius: '8px', maxHeight: '400px', objectFit: 'cover'}} 
+      onError={(e) => {
+        e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23eee" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" fill="%23999" font-size="12"%3EPhoto non trouvée%3C/text%3E%3C/svg%3E';
+      }}
+    />
+  );
 }
 
 const translations = {
@@ -469,7 +455,7 @@ function App() {
     setLoading(false);
   };
 
-// ===== ADD PHOTO =====
+  // ===== ADD PHOTO =====
   const handleAddPhoto = async (e) => {
     e.preventDefault();
     if (!selectedChild) return;
@@ -892,7 +878,7 @@ function App() {
               <div key={photo.id} className="photo-card" style={{border: '1px solid #ddd', padding: '15px', margin: '10px 0', borderRadius: '8px'}}>
                 {photo.file_path && <PhotoDisplay filePath={photo.file_path} />}
                 <p style={{marginTop: '10px'}}><strong>{photo.caption || 'Sans titre'}</strong></p>
-                {photo.photo_date && <p>{new Date(photo.photo_date).toLocaleDateString()}</p>}
+                {photo.photo_date && <p>{photo.photo_date}</p>}
               </div>
             ))}
             {photos.length === 0 && <p className="empty">Aucune photo</p>}
@@ -1069,7 +1055,7 @@ function App() {
                 <div key={photo.id} className="photo-card" style={{border: '1px solid #ddd', padding: '15px', margin: '10px 0', borderRadius: '8px'}}>
                   {photo.file_path && <PhotoDisplay filePath={photo.file_path} />}
                   <p style={{marginTop: '10px'}}><strong>{photo.caption || 'Sans titre'}</strong></p>
-                  {photo.photo_date && <p>{new Date(photo.photo_date).toLocaleDateString()}</p>}
+                  {photo.photo_date && <p>{photo.photo_date}</p>}
                 </div>
               ))
             ) : (
