@@ -16,6 +16,7 @@ const translations = {
     appTitle: 'Premier Nuage',
     email: 'Email',
     password: 'Mot de passe',
+    newPassword: 'Nouveau mot de passe',
     login: 'Se connecter',
     signup: 'S\'inscrire',
     create: 'Créer',
@@ -35,7 +36,7 @@ const translations = {
     eyeColor: 'Couleur des yeux',
     hairColor: 'Couleur des cheveux',
     allergies: 'Allergies',
-    profilePicture: 'Photo de profil',
+    profilePicture: 'Photo de profil (URL)',
     birthDate: 'Date de naissance',
     relationship: 'Lien de parenté',
     children: 'Enfants',
@@ -43,72 +44,19 @@ const translations = {
     save: 'Enregistrer',
     cancel: 'Annuler',
     accessManagement: 'Gestion des accès',
-    relatives: 'Proches',
+    relatives: 'Proches ayant accès',
     family: 'Cercle familial',
     friends: 'Amis',
     colleagues: 'Collègues',
     other: 'Autres',
     remove: 'Supprimer l\'accès',
     photoDate: 'Date de la photo',
-    childAge: 'Âge de l\'enfant',
-    weeks: 'semaines',
-    months: 'mois',
-    years: 'ans',
-    shareWith: 'Partager avec',
     caption: 'Légende',
-    upload: 'Ajouter',
+    upload: 'Ajouter photo',
     selectDate: 'Sélectionner une date',
-    selectAge: 'Sélectionner l\'âge',
     notifications: 'Notifications',
-  },
-  en: {
-    appTitle: 'Premier Nuage',
-    email: 'Email',
-    password: 'Password',
-    login: 'Login',
-    signup: 'Sign up',
-    create: 'Create',
-    logout: 'Logout',
-    photos: 'Photos',
-    accessRequests: 'Access Requests',
-    approve: 'Approve',
-    deny: 'Deny',
-    name: 'First name',
-    lastName: 'Last name',
-    bio: 'Bio',
-    parent1: 'Parent 1',
-    parent2: 'Parent 2',
-    weight: 'Weight (g)',
-    height: 'Height (cm)',
-    bloodType: 'Blood type',
-    eyeColor: 'Eye color',
-    hairColor: 'Hair color',
-    allergies: 'Allergies',
-    profilePicture: 'Profile picture',
-    birthDate: 'Birth date',
-    relationship: 'Relationship',
-    children: 'Children',
-    edit: 'Edit',
-    save: 'Save',
-    cancel: 'Cancel',
-    accessManagement: 'Access Management',
-    relatives: 'Relatives',
-    family: 'Family',
-    friends: 'Friends',
-    colleagues: 'Colleagues',
-    other: 'Other',
-    remove: 'Remove access',
-    photoDate: 'Photo date',
-    childAge: 'Child age',
-    weeks: 'weeks',
-    months: 'months',
-    years: 'years',
-    shareWith: 'Share with',
-    caption: 'Caption',
-    upload: 'Add',
-    selectDate: 'Select a date',
-    selectAge: 'Select age',
-    notifications: 'Notifications',
+    addChildViaQR: 'Ajouter un enfant',
+    profile: 'Mon profil',
   },
 };
 
@@ -123,32 +71,13 @@ function App() {
   const [accessRequests, setAccessRequests] = useState([]);
   const [childAccess, setChildAccess] = useState([]);
   const [editingChild, setEditingChild] = useState(null);
+  const [editingProfile, setEditingProfile] = useState(null);
+  
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    name: '',
-    lastName: '',
-    childName: '',
-    birthDate: '',
-    weight: '',
-    height: '',
-    parent1Name: '',
-    parent2Name: '',
-    bio: '',
-    bloodType: '',
-    eyeColor: '',
-    hairColor: '',
-    allergies: '',
-    profilePicture: '',
-    qrCodeId: '',
-    relationship: '',
-    childBirthDate: '',
-    caption: '',
-    photoDate: '',
-    childAgeWeeks: '',
-    childAgeMonths: '',
-    childAgeYears: '',
-    selectedCategories: [],
+    email: '', password: '', name: '', lastName: '', childName: '', birthDate: '',
+    weight: '', height: '', parent1Name: '', parent2Name: '', bio: '',
+    bloodType: '', eyeColor: '', hairColor: '', allergies: '', profilePicture: '',
+    qrCodeId: '', relationship: '', childBirthDate: '', caption: '', photoDate: ''
   });
   const [loading, setLoading] = useState(false);
 
@@ -230,7 +159,7 @@ function App() {
       setUser(data);
       setUserType('relative');
       loadRelativeChildren(data.id);
-      setView('relative-children');
+      setView('relative-dashboard');
       setFormData({ ...formData, email: '', password: '' });
     } catch (err) {
       alert('Erreur : ' + err.message);
@@ -281,8 +210,41 @@ function App() {
         });
 
       alert('Demande d\'accès envoyée !');
-      setFormData({ ...formData, email: '', password: '', name: '', relationship: '', childBirthDate: '' });
+      setFormData({ ...formData, email: '', password: '', name: '', relationship: '', childBirthDate: '', qrCodeId: '' });
       setView('auth');
+    } catch (err) {
+      alert('Erreur : ' + err.message);
+    }
+    setLoading(false);
+  };
+
+  // ===== RELATIVE ADD CHILD VIA QR (already logged in) =====
+  const handleRelativeAddChildViaQR = async (qrCodeId) => {
+    setLoading(true);
+    try {
+      const { data: childData } = await supabase
+        .from('children')
+        .select('*')
+        .eq('qr_code_id', qrCodeId)
+        .single();
+
+      if (!childData) {
+        alert('Code QR invalide');
+        setLoading(false);
+        return;
+      }
+
+      await supabase
+        .from('access_requests')
+        .insert({
+          child_id: childData.id,
+          relative_id: user.id,
+          status: 'pending',
+        });
+
+      alert('Demande d\'accès envoyée aux parents !');
+      setFormData({ ...formData, qrCodeId: '' });
+      setView('relative-dashboard');
     } catch (err) {
       alert('Erreur : ' + err.message);
     }
@@ -366,7 +328,7 @@ function App() {
       if (error) throw error;
 
       loadParentChildren(user.id);
-      setFormData({ ...formData, childName: '', lastName: '', birthDate: '', bio: '', parent1Name: '', parent2Name: '', weight: '', height: '', bloodType: '', eyeColor: '', hairColor: '', allergies: '' });
+      setFormData({ ...formData, childName: '', lastName: '', birthDate: '', bio: '', parent1Name: '', parent2Name: '', weight: '', height: '', bloodType: '', eyeColor: '', hairColor: '', allergies: '', profilePicture: '' });
       setView('parent-dashboard');
     } catch (err) {
       alert('Erreur : ' + err.message);
@@ -400,9 +362,40 @@ function App() {
       if (error) throw error;
 
       loadParentChildren(user.id);
-      setEditingChild(null);
       setSelectedChild({ ...selectedChild, ...editingChild });
+      setEditingChild(null);
       alert('Enfant modifié !');
+    } catch (err) {
+      alert('Erreur : ' + err.message);
+    }
+    setLoading(false);
+  };
+
+  // ===== RELATIVE EDIT PROFILE =====
+  const handleEditProfile = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const updateData = {
+        name: editingProfile.name,
+        relationship: editingProfile.relationship,
+        birth_date: editingProfile.birth_date,
+      };
+
+      if (editingProfile.newPassword) {
+        updateData.password_hash = hashPassword(editingProfile.newPassword);
+      }
+
+      const { error } = await supabase
+        .from('relatives')
+        .update(updateData)
+        .eq('id', editingProfile.id);
+
+      if (error) throw error;
+
+      setUser({ ...user, ...editingProfile });
+      setEditingProfile(null);
+      alert('Profil modifié !');
     } catch (err) {
       alert('Erreur : ' + err.message);
     }
@@ -418,9 +411,6 @@ function App() {
     try {
       const caption = (e.target.caption?.value || '').trim();
       const photoDate = e.target.photoDate?.value || null;
-      const childAgeWeeks = e.target.childAgeWeeks?.value || null;
-      const childAgeMonths = e.target.childAgeMonths?.value || null;
-      const childAgeYears = e.target.childAgeYears?.value || null;
 
       const { error } = await supabase
         .from('photos')
@@ -429,9 +419,6 @@ function App() {
           uploaded_by: user.id,
           caption: caption || null,
           photo_date: photoDate,
-          child_age_weeks: childAgeWeeks,
-          child_age_months: childAgeMonths,
-          child_age_years: childAgeYears,
         });
 
       if (error) throw error;
@@ -487,7 +474,6 @@ function App() {
       if (error) throw error;
 
       loadAccessRequests(selectedChild.id);
-      alert('Accès refusé');
     } catch (err) {
       alert('Erreur : ' + err.message);
     }
@@ -568,10 +554,7 @@ function App() {
           {view === 'relative-join' && (
             <div>
               <h2>Proches</h2>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                setView('relative-qr');
-              }}>
+              <form onSubmit={(e) => { e.preventDefault(); setView('relative-qr'); }}>
                 <button type="submit">Avez-vous un code QR ?</button>
               </form>
               <button onClick={() => setView('relative-login')} style={{marginTop: '10px'}}>J'ai déjà un compte</button>
@@ -582,11 +565,7 @@ function App() {
           {view === 'relative-qr' && (
             <div>
               <h2>Proches</h2>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                setFormData({...formData, qrCodeId: e.target.qrCode.value});
-                setView('relative-signup');
-              }}>
+              <form onSubmit={(e) => { e.preventDefault(); setFormData({...formData, qrCodeId: e.target.qrCode.value}); setView('relative-signup'); }}>
                 <input type="text" name="qrCode" placeholder="Code QR" required />
                 <button type="submit">Continuer</button>
               </form>
@@ -597,10 +576,7 @@ function App() {
           {view === 'relative-signup' && (
             <div>
               <h2>Proches - {t.signup}</h2>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                handleRelativeSignupViaQR(formData.qrCodeId);
-              }}>
+              <form onSubmit={(e) => { e.preventDefault(); handleRelativeSignupViaQR(formData.qrCodeId); }}>
                 <input type="text" placeholder={t.name} value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
                 <input type="email" placeholder={t.email} value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required />
                 <input type="password" placeholder={t.password} value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} required />
@@ -648,13 +624,13 @@ function App() {
                 loadAccessRequests(child.id);
                 loadChildAccess(child.id);
                 setView('parent-child');
-              }}>
-                {child.profile_picture && <img src={child.profile_picture} alt={child.name} className="child-profile-pic" />}
+              }} style={{cursor: 'pointer'}}>
+                {child.profile_picture && <img src={child.profile_picture} alt={child.name} style={{width: '50px', height: '50px', borderRadius: '50%'}} />}
                 <h3>{child.name} {child.last_name}</h3>
                 <p>{new Date(child.birth_date).toLocaleDateString()}</p>
               </div>
             ))}
-            <button className="btn-primary" onClick={() => setView('parent-create-child')}>➕ Ajouter un enfant</button>
+            <button className="btn-primary" onClick={() => setView('parent-create-child')}>➕ {t.children}</button>
           </div>
 
           <button className="btn-logout" onClick={handleLogout}>{t.logout}</button>
@@ -668,10 +644,10 @@ function App() {
     return (
       <div className="app">
         <div className="form-container">
-          <h2>Créer un espace pour votre enfant</h2>
+          <h2>Créer un enfant</h2>
           <form onSubmit={handleCreateChild}>
             <input type="text" placeholder={t.name} value={formData.childName} onChange={(e) => setFormData({...formData, childName: e.target.value})} required />
-            <input type="text" placeholder={t.lastName} value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} required />
+            <input type="text" placeholder={t.lastName} value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} />
             <input type="date" value={formData.birthDate} onChange={(e) => setFormData({...formData, birthDate: e.target.value})} required />
             <textarea placeholder={t.bio} value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} />
             <input type="text" placeholder={t.parent1} value={formData.parent1Name} onChange={(e) => setFormData({...formData, parent1Name: e.target.value})} />
@@ -698,12 +674,12 @@ function App() {
     return (
       <div className="app">
         <div className="family-container">
-          {selectedChild.profile_picture && <img src={selectedChild.profile_picture} alt={selectedChild.name} className="child-large-pic" />}
+          {selectedChild.profile_picture && <img src={selectedChild.profile_picture} alt={selectedChild.name} style={{width: '100px', height: '100px', borderRadius: '50%'}} />}
           <h1>{selectedChild.name} {selectedChild.last_name}</h1>
           <p>{daysOld} jours</p>
-          {selectedChild.bio && <p className="child-bio">{selectedChild.bio}</p>}
+          {selectedChild.bio && <p>{selectedChild.bio}</p>}
 
-          <div className="child-info">
+          <div className="child-info" style={{fontSize: '14px', textAlign: 'left', marginTop: '20px'}}>
             <p><strong>{t.parent1}:</strong> {selectedChild.parent1_name}</p>
             {selectedChild.parent2_name && <p><strong>{t.parent2}:</strong> {selectedChild.parent2_name}</p>}
             {selectedChild.weight && <p><strong>{t.weight}:</strong> {selectedChild.weight}g</p>}
@@ -714,20 +690,20 @@ function App() {
             {selectedChild.allergies && <p><strong>{t.allergies}:</strong> {selectedChild.allergies}</p>}
           </div>
 
-          <div className="qr-section">
+          <div className="qr-section" style={{marginTop: '20px'}}>
             <h3>Code QR</h3>
             <QRCode value={selectedChild.qr_code_id} size={200} />
-            <p className="qr-id">{selectedChild.qr_code_id}</p>
+            <p>{selectedChild.qr_code_id}</p>
           </div>
 
-          <div className="tabs">
+          <div className="tabs" style={{display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap'}}>
             <button onClick={() => { setEditingChild(selectedChild); setView('parent-edit-child'); }} className="tab-btn">✏️ {t.edit}</button>
             <button onClick={() => setView('parent-photos')} className="tab-btn">📸 {t.photos}</button>
             <button onClick={() => setView('parent-access')} className="tab-btn">👥 {t.accessManagement}</button>
             <button onClick={() => setView('parent-access-requests')} className="tab-btn">📋 {t.accessRequests}</button>
           </div>
 
-          <button onClick={() => setView('parent-dashboard')}>← Retour</button>
+          <button onClick={() => setView('parent-dashboard')} style={{marginTop: '20px'}}>← Retour</button>
           <button className="btn-logout" onClick={handleLogout}>{t.logout}</button>
         </div>
       </div>
@@ -741,18 +717,42 @@ function App() {
         <div className="form-container">
           <h2>Modifier {editingChild.name}</h2>
           <form onSubmit={handleEditChild}>
+            <label>{t.name}</label>
             <input type="text" value={editingChild.name} onChange={(e) => setEditingChild({...editingChild, name: e.target.value})} />
-            <input type="text" value={editingChild.last_name} onChange={(e) => setEditingChild({...editingChild, last_name: e.target.value})} />
-            <textarea value={editingChild.bio} onChange={(e) => setEditingChild({...editingChild, bio: e.target.value})} />
-            <input type="text" value={editingChild.parent1_name} onChange={(e) => setEditingChild({...editingChild, parent1_name: e.target.value})} />
+            
+            <label>{t.lastName}</label>
+            <input type="text" value={editingChild.last_name || ''} onChange={(e) => setEditingChild({...editingChild, last_name: e.target.value})} />
+            
+            <label>{t.bio}</label>
+            <textarea value={editingChild.bio || ''} onChange={(e) => setEditingChild({...editingChild, bio: e.target.value})} />
+            
+            <label>{t.parent1}</label>
+            <input type="text" value={editingChild.parent1_name || ''} onChange={(e) => setEditingChild({...editingChild, parent1_name: e.target.value})} />
+            
+            <label>{t.parent2}</label>
             <input type="text" value={editingChild.parent2_name || ''} onChange={(e) => setEditingChild({...editingChild, parent2_name: e.target.value})} />
+            
+            <label>{t.weight}</label>
             <input type="number" value={editingChild.weight || ''} onChange={(e) => setEditingChild({...editingChild, weight: e.target.value})} />
+            
+            <label>{t.height}</label>
             <input type="number" value={editingChild.height || ''} onChange={(e) => setEditingChild({...editingChild, height: e.target.value})} />
+            
+            <label>{t.bloodType}</label>
             <input type="text" value={editingChild.blood_type || ''} onChange={(e) => setEditingChild({...editingChild, blood_type: e.target.value})} />
+            
+            <label>{t.eyeColor}</label>
             <input type="text" value={editingChild.eye_color || ''} onChange={(e) => setEditingChild({...editingChild, eye_color: e.target.value})} />
+            
+            <label>{t.hairColor}</label>
             <input type="text" value={editingChild.hair_color || ''} onChange={(e) => setEditingChild({...editingChild, hair_color: e.target.value})} />
+            
+            <label>{t.allergies}</label>
             <input type="text" value={editingChild.allergies || ''} onChange={(e) => setEditingChild({...editingChild, allergies: e.target.value})} />
+            
+            <label>{t.profilePicture}</label>
             <input type="text" value={editingChild.profile_picture || ''} onChange={(e) => setEditingChild({...editingChild, profile_picture: e.target.value})} />
+            
             <button type="submit" disabled={loading}>{t.save}</button>
           </form>
           <button onClick={() => { setEditingChild(null); setView('parent-child'); }}>{t.cancel}</button>
@@ -772,24 +772,14 @@ function App() {
             <input type="text" name="caption" placeholder={t.caption} />
             <input type="file" name="photo" accept="image/*,video/*" />
             <input type="date" name="photoDate" placeholder={t.photoDate} />
-            <div>
-              <label>{t.childAge}</label>
-              <input type="number" name="childAgeWeeks" placeholder={t.weeks} min="0" />
-              <input type="number" name="childAgeMonths" placeholder={t.months} min="0" />
-              <input type="number" name="childAgeYears" placeholder={t.years} min="0" />
-            </div>
             <button type="submit" disabled={loading}>{t.upload}</button>
           </form>
 
           <div className="photos-list">
             {photos.map(photo => (
               <div key={photo.id} className="photo-card">
-                <p className="photo-caption">{photo.caption || 'Sans titre'}</p>
-                {photo.child_age_weeks && <p>{photo.child_age_weeks} {t.weeks}</p>}
-                {photo.child_age_months && <p>{photo.child_age_months} {t.months}</p>}
-                {photo.child_age_years && <p>{photo.child_age_years} {t.years}</p>}
+                <p><strong>{photo.caption || 'Sans titre'}</strong></p>
                 {photo.photo_date && <p>{new Date(photo.photo_date).toLocaleDateString()}</p>}
-                <p className="photo-date">{new Date(photo.uploaded_at).toLocaleDateString()}</p>
               </div>
             ))}
             {photos.length === 0 && <p className="empty">Aucune photo</p>}
@@ -810,15 +800,18 @@ function App() {
 
           <div className="relatives-list">
             <h3>{t.relatives}</h3>
-            {childAccess.map(access => (
-              <div key={access.id} className="relative-card">
-                <p><strong>{access.relatives.name}</strong></p>
-                <p>{access.relatives.email}</p>
-                <p>{access.category}</p>
-                <button onClick={() => handleRemoveAccess(access.id)} className="btn-logout">{t.remove}</button>
-              </div>
-            ))}
-            {childAccess.length === 0 && <p className="empty">Pas de proches</p>}
+            {childAccess && childAccess.length > 0 ? (
+              childAccess.map(access => (
+                <div key={access.id} className="relative-card" style={{border: '1px solid #ddd', padding: '10px', margin: '10px 0', borderRadius: '8px'}}>
+                  <p><strong>{access.relatives?.name}</strong></p>
+                  <p>{access.relatives?.email}</p>
+                  <p>{access.category}</p>
+                  <button onClick={() => handleRemoveAccess(access.id)} className="btn-logout">{t.remove}</button>
+                </div>
+              ))
+            ) : (
+              <p className="empty">Pas de proches</p>
+            )}
           </div>
 
           <button onClick={() => setView('parent-child')}>← Retour</button>
@@ -835,17 +828,20 @@ function App() {
           <h2>📋 {t.accessRequests}</h2>
 
           <div className="requests-list">
-            {accessRequests.map(request => (
-              <div key={request.id} className="request-card">
-                <p><strong>{request.relatives.name}</strong></p>
-                <p>{request.relatives.email}</p>
-                <div className="request-buttons">
-                  <button onClick={() => handleApproveAccess(request.id, request.relative_id)} className="btn-primary">{t.approve}</button>
-                  <button onClick={() => handleDenyAccess(request.id)} className="btn-logout">{t.deny}</button>
+            {accessRequests && accessRequests.length > 0 ? (
+              accessRequests.map(request => (
+                <div key={request.id} className="request-card" style={{border: '1px solid #ddd', padding: '10px', margin: '10px 0', borderRadius: '8px'}}>
+                  <p><strong>{request.relatives?.name}</strong></p>
+                  <p>{request.relatives?.email}</p>
+                  <div className="request-buttons" style={{display: 'flex', gap: '10px', marginTop: '10px'}}>
+                    <button onClick={() => handleApproveAccess(request.id, request.relative_id)} className="btn-primary">{t.approve}</button>
+                    <button onClick={() => handleDenyAccess(request.id)} className="btn-logout">{t.deny}</button>
+                  </div>
                 </div>
-              </div>
-            ))}
-            {accessRequests.length === 0 && <p className="empty">Pas de demandes</p>}
+              ))
+            ) : (
+              <p className="empty">Pas de demandes</p>
+            )}
           </div>
 
           <button onClick={() => setView('parent-child')}>← Retour</button>
@@ -854,8 +850,8 @@ function App() {
     );
   }
 
-  // ===== RELATIVE CHILDREN =====
-  if (userType === 'relative' && view === 'relative-children') {
+  // ===== RELATIVE DASHBOARD =====
+  if (userType === 'relative' && view === 'relative-dashboard') {
     return (
       <div className="app">
         <div className="family-container">
@@ -867,21 +863,72 @@ function App() {
 
           <div className="children-list">
             <h2>{t.children}</h2>
-            {children.map(child => (
-              <div key={child.id} className="child-card" onClick={() => {
-                setSelectedChild(child);
-                loadPhotos(child.id);
-                setView('relative-photos');
-              }}>
-                {child.profile_picture && <img src={child.profile_picture} alt={child.name} className="child-profile-pic" />}
-                <h3>{child.name} {child.last_name}</h3>
-                {child.bio && <p>{child.bio}</p>}
-              </div>
-            ))}
-            {children.length === 0 && <p className="empty">Pas d'enfants approuvés</p>}
+            {children && children.length > 0 ? (
+              children.map(child => (
+                <div key={child.id} className="child-card" onClick={() => {
+                  setSelectedChild(child);
+                  loadPhotos(child.id);
+                  setView('relative-photos');
+                }} style={{cursor: 'pointer'}}>
+                  {child.profile_picture && <img src={child.profile_picture} alt={child.name} style={{width: '50px', height: '50px', borderRadius: '50%'}} />}
+                  <h3>{child.name} {child.last_name}</h3>
+                  {child.bio && <p>{child.bio}</p>}
+                </div>
+              ))
+            ) : (
+              <p className="empty">Pas d'enfants approuvés</p>
+            )}
+            <button className="btn-primary" onClick={() => setView('relative-add-child')} style={{marginTop: '10px'}}>{t.addChildViaQR}</button>
           </div>
 
+          <button onClick={() => { setEditingProfile(user); setView('relative-edit-profile'); }} style={{marginTop: '10px'}}>{t.profile}</button>
           <button className="btn-logout" onClick={handleLogout}>{t.logout}</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== RELATIVE ADD CHILD VIA QR =====
+  if (userType === 'relative' && view === 'relative-add-child') {
+    return (
+      <div className="app">
+        <div className="form-container">
+          <h2>{t.addChildViaQR}</h2>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            handleRelativeAddChildViaQR(e.target.qrCode.value);
+          }}>
+            <input type="text" name="qrCode" placeholder="Code QR" required />
+            <button type="submit" disabled={loading}>Ajouter</button>
+          </form>
+          <button onClick={() => setView('relative-dashboard')}>← Retour</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== RELATIVE EDIT PROFILE =====
+  if (userType === 'relative' && view === 'relative-edit-profile' && editingProfile) {
+    return (
+      <div className="app">
+        <div className="form-container">
+          <h2>Mon profil</h2>
+          <form onSubmit={handleEditProfile}>
+            <label>{t.name}</label>
+            <input type="text" value={editingProfile.name} onChange={(e) => setEditingProfile({...editingProfile, name: e.target.value})} />
+            
+            <label>{t.relationship}</label>
+            <input type="text" value={editingProfile.relationship || ''} onChange={(e) => setEditingProfile({...editingProfile, relationship: e.target.value})} />
+            
+            <label>{t.birthDate}</label>
+            <input type="date" value={editingProfile.birth_date || ''} onChange={(e) => setEditingProfile({...editingProfile, birth_date: e.target.value})} />
+            
+            <label>{t.newPassword}</label>
+            <input type="password" placeholder="Laisser vide pour ne pas changer" onChange={(e) => setEditingProfile({...editingProfile, newPassword: e.target.value})} />
+            
+            <button type="submit" disabled={loading}>{t.save}</button>
+          </form>
+          <button onClick={() => { setEditingProfile(null); setView('relative-dashboard'); }}>{t.cancel}</button>
         </div>
       </div>
     );
@@ -894,7 +941,7 @@ function App() {
         <div className="photos-container">
           <h2>📸 {selectedChild.name}</h2>
 
-          <div className="child-info">
+          <div className="child-info" style={{fontSize: '14px', textAlign: 'left', marginTop: '20px'}}>
             {selectedChild.parent1_name && <p><strong>{t.parent1}:</strong> {selectedChild.parent1_name}</p>}
             {selectedChild.parent2_name && <p><strong>{t.parent2}:</strong> {selectedChild.parent2_name}</p>}
             {selectedChild.weight && <p><strong>{t.weight}:</strong> {selectedChild.weight}g</p>}
@@ -903,21 +950,20 @@ function App() {
             {selectedChild.allergies && <p><strong>{t.allergies}:</strong> {selectedChild.allergies}</p>}
           </div>
 
-          <div className="photos-list">
-            {photos.map(photo => (
-              <div key={photo.id} className="photo-card">
-                <p className="photo-caption">{photo.caption || 'Sans titre'}</p>
-                {photo.child_age_weeks && <p>{photo.child_age_weeks} {t.weeks}</p>}
-                {photo.child_age_months && <p>{photo.child_age_months} {t.months}</p>}
-                {photo.child_age_years && <p>{photo.child_age_years} {t.years}</p>}
-                {photo.photo_date && <p>{new Date(photo.photo_date).toLocaleDateString()}</p>}
-                <p className="photo-date">{new Date(photo.uploaded_at).toLocaleDateString()}</p>
-              </div>
-            ))}
-            {photos.length === 0 && <p className="empty">Aucune photo</p>}
+          <div className="photos-list" style={{marginTop: '20px'}}>
+            {photos && photos.length > 0 ? (
+              photos.map(photo => (
+                <div key={photo.id} className="photo-card">
+                  <p><strong>{photo.caption || 'Sans titre'}</strong></p>
+                  {photo.photo_date && <p>{new Date(photo.photo_date).toLocaleDateString()}</p>}
+                </div>
+              ))
+            ) : (
+              <p className="empty">Aucune photo</p>
+            )}
           </div>
 
-          <button onClick={() => setView('relative-children')}>← Retour</button>
+          <button onClick={() => setView('relative-dashboard')}>← Retour</button>
         </div>
       </div>
     );
