@@ -115,7 +115,6 @@ function App() {
     setLoading(true);
     
     try {
-      // Générer un UUID valide
       const generateUUID = () => {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
           const r = Math.random() * 16 | 0;
@@ -159,19 +158,40 @@ function App() {
 
     setLoading(true);
     try {
-      const caption = (e.target.caption?.value || '').trim();
+      const fileInput = e.target.querySelector('input[type="file"]');
+      const file = fileInput.files[0];
       
-      await supabase
+      if (!file) {
+        alert('Veuillez sélectionner un fichier');
+        setLoading(false);
+        return;
+      }
+
+      const caption = (e.target.caption?.value || '').trim();
+      const fileName = `${family.id}/${Date.now()}_${file.name}`;
+
+      const { data: uploadData, error: uploadError } = await supabase
+        .storage
+        .from('photos')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { error: dbError } = await supabase
         .from('photos')
         .insert([{
           family_id: family.id,
           uploader_email: user.email,
           caption: caption || null,
+          file_path: uploadData.path,
         }]);
+
+      if (dbError) throw dbError;
 
       e.target.reset();
       loadPhotos(family.id);
     } catch (err) {
+      console.error('Erreur upload:', err);
       alert('Erreur upload : ' + err.message);
     }
     setLoading(false);
@@ -318,12 +338,16 @@ function App() {
           </form>
 
           <div className="photos-list">
-            {photos.map((photo) => (
-              <div key={photo.id} className="photo-card">
-                <p className="photo-caption">{photo.caption || 'Sans titre'}</p>
-                <p className="photo-date">{new Date(photo.uploaded_at).toLocaleDateString()}</p>
-              </div>
-            ))}
+            {photos.map((photo) => {
+              const imageUrl = photo.file_path ? `${SUPABASE_URL}/storage/v1/object/public/photos/${photo.file_path}` : null;
+              return (
+                <div key={photo.id} className="photo-card">
+                  {imageUrl && <img src={imageUrl} alt={photo.caption} style={{width: '100%', borderRadius: '8px', marginBottom: '10px', maxHeight: '300px', objectFit: 'cover'}} />}
+                  <p className="photo-caption">{photo.caption || 'Sans titre'}</p>
+                  <p className="photo-date">{new Date(photo.uploaded_at).toLocaleDateString()}</p>
+                </div>
+              );
+            })}
             {photos.length === 0 && <p className="empty">Aucune photo pour le moment</p>}
           </div>
 
