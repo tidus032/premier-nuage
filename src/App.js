@@ -507,7 +507,7 @@ function App() {
 
       if (uploadError) throw uploadError;
 
-      // Enregistrer les métadonnées en base
+      // Enregistrer les métadonnées en base (avec le file_path)
       const { error: dbError } = await supabase
         .from('photos')
         .insert({
@@ -515,7 +515,7 @@ function App() {
           uploaded_by: user.id,
           caption: caption || null,
           photo_date: photoDate,
-          file_path: uploadData.path,
+          file_path: fileName,  // ← C'est la clé : utiliser fileName directement
         });
 
       if (dbError) throw dbError;
