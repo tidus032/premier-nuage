@@ -572,10 +572,10 @@ function App() {
         <div className="photos-container">
           <h2>📸 {t.photos}</h2>
 
-          <form onSubmit={handleAddPhoto} className="photo-form">
-            <input type="text" name="caption" placeholder={t.caption} />
-            <button type="submit" disabled={loading}>{t.upload}</button>
-          </form>
+<form onSubmit={handleAddPhoto} className="photo-form">
+  <input type="text" name="caption" placeholder={t.caption} />
+  <button type="submit" disabled={loading}>{t.upload}</button>
+</form>
 
           <div className="photos-list">
             {photos.map(photo => (
