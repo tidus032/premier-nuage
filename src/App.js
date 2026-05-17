@@ -88,22 +88,24 @@ function App() {
     
     try {
       const qrCodeId = Math.random().toString(36).substring(2, 15);
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('families')
-        .insert([{
+        .insert({
           parent_id: user.id,
           child_name: formData.childName,
           birth_date: formData.birthDate,
           qr_code_id: qrCodeId,
-        }])
-        .select()
-        .single();
+        })
+        .select();
 
-      setFamily(data);
+      if (error) throw error;
+
+      setFamily(data[0]);
       setFormData({ childName: '', birthDate: '' });
       setView('family');
     } catch (err) {
-      alert('Erreur : ' + err.message);
+      console.error('Erreur détaillée:', err);
+      alert('Erreur : ' + (err.message || 'Erreur inconnue'));
     }
     setLoading(false);
   };
