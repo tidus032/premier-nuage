@@ -23,6 +23,9 @@ const translations = {
     signup: 'S\'inscrire',
     childName: 'Prénom de l\'enfant',
     birthDate: 'Date de naissance',
+    weight: 'Poids (g)',
+    height: 'Taille (cm)',
+    parentName: 'Votre prénom',
     create: 'Créer',
     logout: 'Déconnexion',
     qrCode: 'Code QR',
@@ -49,6 +52,9 @@ const translations = {
     signup: 'Sign up',
     childName: 'Child\'s name',
     birthDate: 'Birth date',
+    weight: 'Weight (g)',
+    height: 'Height (cm)',
+    parentName: 'Your name',
     create: 'Create',
     logout: 'Logout',
     qrCode: 'QR Code',
@@ -68,19 +74,28 @@ const translations = {
 
 function App() {
   const [language, setLanguage] = useState('fr');
-  const [userType, setUserType] = useState(null); // 'parent' ou 'relative'
+  const [userType, setUserType] = useState(null);
   const [user, setUser] = useState(null);
   const [view, setView] = useState('auth');
   const [children, setChildren] = useState([]);
   const [selectedChild, setSelectedChild] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [accessRequests, setAccessRequests] = useState([]);
-  const [formData, setFormData] = useState({ email: '', password: '', name: '', childName: '', birthDate: '' });
+  const [formData, setFormData] = useState({ 
+    email: '', 
+    password: '', 
+    name: '', 
+    childName: '', 
+    birthDate: '',
+    weight: '',
+    height: '',
+    parentName: '',
+    qrCodeId: ''
+  });
   const [loading, setLoading] = useState(false);
 
   const t = translations[language];
 
-  // Hash simple pour le password (en production, utiliser bcrypt)
   const hashPassword = (password) => {
     return btoa(password);
   };
@@ -111,7 +126,7 @@ function App() {
       setUserType('parent');
       setView('parent-dashboard');
       loadParentChildren(data.id);
-      setFormData({ email: '', password: '', name: '', childName: '', birthDate: '' });
+      setFormData({ email: '', password: '', name: '', childName: '', birthDate: '', weight: '', height: '', parentName: '', qrCodeId: '' });
     } catch (err) {
       alert('Erreur : ' + err.message);
     }
@@ -133,7 +148,8 @@ function App() {
       if (error) throw error;
 
       alert('Compte créé ! Veuillez vous connecter.');
-      setFormData({ email: '', password: '', name: '', childName: '', birthDate: '' });
+      setFormData({ email: '', password: '', name: '', childName: '', birthDate: '', weight: '', height: '', parentName: '', qrCodeId: '' });
+      setView('parent-login');
     } catch (err) {
       alert('Erreur : ' + err.message);
     }
@@ -160,8 +176,9 @@ function App() {
       localStorage.setItem('premiernuage_relative', JSON.stringify(data));
       setUser(data);
       setUserType('relative');
+      loadRelativeChildren(data.id);
       setView('relative-children');
-      setFormData({ email: '', password: '', name: '', childName: '', birthDate: '' });
+      setFormData({ email: '', password: '', name: '', childName: '', birthDate: '', weight: '', height: '', parentName: '', qrCodeId: '' });
     } catch (err) {
       alert('Erreur : ' + err.message);
     }
@@ -172,7 +189,6 @@ function App() {
   const handleRelativeSignupViaQR = async (qrCodeId) => {
     setLoading(true);
     try {
-      // Vérifier que l'enfant existe
       const { data: childData } = await supabase
         .from('children')
         .select('*')
@@ -185,7 +201,6 @@ function App() {
         return;
       }
 
-      // Créer le compte du proche
       const { error: signupError } = await supabase
         .from('relatives')
         .insert({
@@ -196,7 +211,6 @@ function App() {
 
       if (signupError) throw signupError;
 
-      // Créer la demande d'accès
       const { data: relativeData } = await supabase
         .from('relatives')
         .select('id')
@@ -212,7 +226,7 @@ function App() {
         });
 
       alert('Demande d\'accès envoyée ! En attente de validation des parents.');
-      setFormData({ email: '', password: '', name: '', childName: '', birthDate: '' });
+      setFormData({ email: '', password: '', name: '', childName: '', birthDate: '', weight: '', height: '', parentName: '', qrCodeId: '' });
       setView('auth');
     } catch (err) {
       alert('Erreur : ' + err.message);
@@ -241,10 +255,22 @@ function App() {
   const loadAccessRequests = async (childId) => {
     const { data } = await supabase
       .from('access_requests')
-      .select('*')
+      .select('*, relatives(name, email)')
       .eq('child_id', childId)
       .eq('status', 'pending');
     setAccessRequests(data || []);
+  };
+
+  const loadRelativeChildren = async (relativeId) => {
+    const { data } = await supabase
+      .from('access_requests')
+      .select('*, children(*)')
+      .eq('relative_id', relativeId)
+      .eq('status', 'approved');
+
+    if (data) {
+      setChildren(data.map(r => r.children));
+    }
   };
 
   // ===== PARENT CREATE CHILD =====
@@ -259,12 +285,15 @@ function App() {
           parent_id: user.id,
           name: formData.childName,
           birth_date: formData.birthDate,
+          weight: formData.weight || null,
+          height: formData.height || null,
+          parent_name: formData.parentName || null,
           qr_code_id: qrCodeId,
         });
 
       if (error) throw error;
 
-      setFormData({ ...formData, childName: '', birthDate: '' });
+      setFormData({ ...formData, childName: '', birthDate: '', weight: '', height: '', parentName: '' });
       loadParentChildren(user.id);
       setView('parent-dashboard');
     } catch (err) {
@@ -312,6 +341,7 @@ function App() {
       if (error) throw error;
 
       loadAccessRequests(selectedChild.id);
+      alert('Accès approuvé !');
     } catch (err) {
       alert('Erreur : ' + err.message);
     }
@@ -329,23 +359,11 @@ function App() {
       if (error) throw error;
 
       loadAccessRequests(selectedChild.id);
+      alert('Accès refusé');
     } catch (err) {
       alert('Erreur : ' + err.message);
     }
     setLoading(false);
-  };
-
-  // ===== RELATIVE VIEW CHILDREN =====
-  const loadRelativeChildren = async (relativeId) => {
-    const { data } = await supabase
-      .from('access_requests')
-      .select('child_id, children(*)')
-      .eq('relative_id', relativeId)
-      .eq('status', 'approved');
-
-    if (data) {
-      setChildren(data.map(r => r.children));
-    }
   };
 
   const handleLogout = () => {
@@ -406,17 +424,31 @@ function App() {
           {view === 'relative-join' && (
             <div>
               <h2>{t.relativeSpace}</h2>
-              <p>Scannez le QR code ou entrez le code</p>
-              <input type="text" placeholder="Code QR" id="qr-input" />
+              <p>Avez-vous un code QR ?</p>
               <form onSubmit={(e) => {
                 e.preventDefault();
-                const qrCode = document.getElementById('qr-input').value;
-                setFormData({...formData, qrCodeId: qrCode});
+                setView('relative-qr');
+              }}>
+                <button type="submit">Oui</button>
+              </form>
+              <button onClick={() => setView('relative-login')} style={{marginTop: '10px'}}>J'ai déjà un compte</button>
+              <button onClick={() => setView('auth')}>← Retour</button>
+            </div>
+          )}
+
+          {view === 'relative-qr' && (
+            <div>
+              <h2>{t.relativeSpace}</h2>
+              <p>Entrez le code QR</p>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                setFormData({...formData, qrCodeId: e.target.qrCode.value});
                 setView('relative-signup');
               }}>
-                <button type="submit">{t.create}</button>
+                <input type="text" name="qrCode" placeholder="Code QR" required />
+                <button type="submit">Continuer</button>
               </form>
-              <button onClick={() => setView('auth')}>← Retour</button>
+              <button onClick={() => setView('relative-join')}>← Retour</button>
             </div>
           )}
 
@@ -432,7 +464,7 @@ function App() {
                 <input type="password" placeholder={t.password} value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} required />
                 <button type="submit" disabled={loading}>{t.signup}</button>
               </form>
-              <button onClick={() => setView('relative-join')}>← Retour</button>
+              <button onClick={() => setView('relative-qr')}>← Retour</button>
             </div>
           )}
 
@@ -444,7 +476,7 @@ function App() {
                 <input type="password" placeholder={t.password} value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} required />
                 <button type="submit" disabled={loading}>{t.login}</button>
               </form>
-              <button onClick={() => setView('auth')}>← Retour</button>
+              <button onClick={() => setView('relative-join')}>← Retour</button>
             </div>
           )}
         </div>
@@ -494,6 +526,9 @@ function App() {
           <form onSubmit={handleCreateChild}>
             <input type="text" placeholder={t.childName} value={formData.childName} onChange={(e) => setFormData({...formData, childName: e.target.value})} required />
             <input type="date" value={formData.birthDate} onChange={(e) => setFormData({...formData, birthDate: e.target.value})} required />
+            <input type="text" placeholder={t.parentName} value={formData.parentName} onChange={(e) => setFormData({...formData, parentName: e.target.value})} />
+            <input type="number" placeholder={t.weight} value={formData.weight} onChange={(e) => setFormData({...formData, weight: e.target.value})} />
+            <input type="number" placeholder={t.height} value={formData.height} onChange={(e) => setFormData({...formData, height: e.target.value})} />
             <button type="submit" disabled={loading}>{t.create}</button>
           </form>
           <button onClick={() => setView('parent-dashboard')}>← Retour</button>
@@ -568,9 +603,12 @@ function App() {
           <div className="requests-list">
             {accessRequests.map(request => (
               <div key={request.id} className="request-card">
-                <p>{request.id}</p>
-                <button onClick={() => handleApproveAccess(request.id)} className="btn-primary">{t.approve}</button>
-                <button onClick={() => handleDenyAccess(request.id)} className="btn-logout">{t.deny}</button>
+                <p><strong>{request.relatives.name}</strong></p>
+                <p>{request.relatives.email}</p>
+                <div className="request-buttons">
+                  <button onClick={() => handleApproveAccess(request.id)} className="btn-primary">{t.approve}</button>
+                  <button onClick={() => handleDenyAccess(request.id)} className="btn-logout">{t.deny}</button>
+                </div>
               </div>
             ))}
             {accessRequests.length === 0 && <p className="empty">Pas de demandes en attente</p>}
@@ -594,6 +632,7 @@ function App() {
           </div>
 
           <div className="children-list">
+            <h2>{t.children}</h2>
             {children.map(child => (
               <div key={child.id} className="child-card" onClick={() => {
                 setSelectedChild(child);
@@ -603,6 +642,7 @@ function App() {
                 <h3>{child.name}</h3>
               </div>
             ))}
+            {children.length === 0 && <p className="empty">Pas d'enfants approuvés pour le moment</p>}
           </div>
 
           <button className="btn-logout" onClick={handleLogout}>{t.logout}</button>
