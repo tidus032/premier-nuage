@@ -790,7 +790,7 @@ function App() {
             <input type="text" placeholder={t.eyeColor} value={formData.eyeColor} onChange={(e) => setFormData({...formData, eyeColor: e.target.value})} />
             
             <label>{t.hairColor}</label>
-            <input type="text" placeholder={t.hairColor} value={formData.hairColor} onChange((e) => setFormData({...formData, hairColor: e.target.value})} />
+            <input type="text" placeholder={t.hairColor} value={formData.hairColor} onChange={(e) => setFormData({...formData, hairColor: e.target.value})} />
             
             <label>{t.allergies}</label>
             <input type="text" placeholder={t.allergies} value={formData.allergies} onChange={(e) => setFormData({...formData, allergies: e.target.value})} />
