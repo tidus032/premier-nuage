@@ -11,7 +11,6 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false },
 });
 
-// Composant pour afficher les photos directement du bucket public
 function PhotoDisplay({ filePath }) {
   const imageUrl = `https://wxhcynlcjjdjptoxijhc.supabase.co/storage/v1/object/public/photos/${filePath}`;
   
@@ -27,7 +26,6 @@ function PhotoDisplay({ filePath }) {
   );
 }
 
-// Galerie avec swipe
 function PhotoGallery({ photos, onClose, userType, user, selectedChild }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(0);
@@ -63,11 +61,26 @@ function PhotoGallery({ photos, onClose, userType, user, selectedChild }) {
 
     setLoadingComment(true);
     try {
+      // Récupère le nom du relative
+      let relativeName = user.name || 'Anonyme';
+      
+      if (userType === 'relative') {
+        const { data } = await supabase
+          .from('relatives')
+          .select('name')
+          .eq('id', user.id)
+          .single();
+        if (data) {
+          relativeName = data.name;
+        }
+      }
+
       const { error } = await supabase
         .from('comments')
         .insert({
           photo_id: currentPhoto.id,
           relative_id: user.id,
+          relative_name: relativeName,
           text: newComment,
         });
 
@@ -113,7 +126,6 @@ function PhotoGallery({ photos, onClose, userType, user, selectedChild }) {
       display: 'flex',
       flexDirection: 'column'
     }}>
-      {/* Header */}
       <div style={{
         background: '#1a1a1a',
         padding: '20px',
@@ -138,7 +150,6 @@ function PhotoGallery({ photos, onClose, userType, user, selectedChild }) {
         </button>
       </div>
 
-      {/* Photo */}
       <div
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -161,7 +172,6 @@ function PhotoGallery({ photos, onClose, userType, user, selectedChild }) {
         />
       </div>
 
-      {/* Infos + Commentaires */}
       <div style={{
         background: '#1a1a1a',
         color: '#fff',
@@ -179,18 +189,19 @@ function PhotoGallery({ photos, onClose, userType, user, selectedChild }) {
           </p>
         )}
 
-        {/* Commentaires (visible pour proches) */}
-        {userType === 'relative' && (
-          <div>
-            <h4 style={{marginBottom: '10px', fontSize: '14px'}}>Commentaires</h4>
-            <div style={{marginBottom: '15px', maxHeight: '150px', overflowY: 'auto'}}>
-              {comments.map(comment => (
-                <p key={comment.id} style={{fontSize: '12px', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #333'}}>
-                  <strong style={{color: '#ff6b9d'}}>{comment.relative_id.substring(0, 8)}</strong>: {comment.text}
-                </p>
-              ))}
-            </div>
+        {/* Commentaires visibles par TOUS */}
+        <div>
+          <h4 style={{marginBottom: '10px', fontSize: '14px'}}>Commentaires</h4>
+          <div style={{marginBottom: '15px', maxHeight: '150px', overflowY: 'auto'}}>
+            {comments.map(comment => (
+              <p key={comment.id} style={{fontSize: '12px', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #333'}}>
+                <strong style={{color: '#ff6b9d'}}>{comment.relative_name || 'Anonyme'}</strong>: {comment.text}
+              </p>
+            ))}
+          </div>
 
+          {/* Formulaire commentaire (visible seulement pour les proches) */}
+          {userType === 'relative' && (
             <form onSubmit={handleAddComment} style={{display: 'flex', gap: '10px'}}>
               <input
                 type="text"
@@ -223,8 +234,8 @@ function PhotoGallery({ photos, onClose, userType, user, selectedChild }) {
                 ✓
               </button>
             </form>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
@@ -339,6 +350,7 @@ function App() {
   const [editingProfile, setEditingProfile] = useState(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
+  const [showUploadForm, setShowUploadForm] = useState(false);
   
   const [formData, setFormData] = useState({
     email: '', password: '', name: '', lastName: '', childName: '', birthDate: '',
@@ -727,6 +739,7 @@ function App() {
       if (dbError) throw dbError;
 
       e.target.reset();
+      setShowUploadForm(false);
       loadPhotos(selectedChild.id);
       alert('✅ Photo ajoutée avec succès !');
     } catch (err) {
@@ -1038,20 +1051,40 @@ function App() {
             </div>
           </div>
 
-          <form onSubmit={handleAddPhoto} style={{
-            background: 'white',
-            borderRadius: '12px',
-            padding: '20px',
-            marginBottom: '30px',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
-            border: '1px solid #ede6e1'
-          }}>
-            <h3 style={{marginTop: 0}}>Ajouter une photo</h3>
-            <input type="text" name="caption" placeholder="Légende (optionnel)" style={{width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #ede6e1', borderRadius: '8px'}} />
-            <input type="file" name="photo" accept="image/*,video/*" required style={{width: '100%', marginBottom: '10px'}} />
-            <input type="date" name="photoDate" style={{width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #ede6e1', borderRadius: '8px'}} />
-            <button type="submit" disabled={loading} style={{width: '100%', padding: '12px', background: 'linear-gradient(135deg, #ff6b9d, #ff4d7d)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer'}}>📸 Ajouter photo</button>
-          </form>
+          {/* Bouton pour afficher/masquer le formulaire */}
+          <button
+            onClick={() => setShowUploadForm(!showUploadForm)}
+            style={{
+              width: '100%',
+              padding: '12px',
+              background: '#f8e8d8',
+              border: '1px solid #ede6e1',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              marginBottom: '20px'
+            }}
+          >
+            {showUploadForm ? '▼ Masquer' : '▶ 📸 Ajouter une photo'}
+          </button>
+
+          {/* Formulaire caché par défaut */}
+          {showUploadForm && (
+            <form onSubmit={handleAddPhoto} style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '30px',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
+              border: '1px solid #ede6e1'
+            }}>
+              <h3 style={{marginTop: 0}}>Ajouter une photo</h3>
+              <input type="text" name="caption" placeholder="Légende (optionnel)" style={{width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #ede6e1', borderRadius: '8px'}} />
+              <input type="file" name="photo" accept="image/*,video/*" required style={{width: '100%', marginBottom: '10px'}} />
+              <input type="date" name="photoDate" style={{width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #ede6e1', borderRadius: '8px'}} />
+              <button type="submit" disabled={loading} style={{width: '100%', padding: '12px', background: 'linear-gradient(135deg, #ff6b9d, #ff4d7d)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer'}}>📸 Ajouter photo</button>
+            </form>
+          )}
 
           <div style={{
             display: 'grid',
