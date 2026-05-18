@@ -148,19 +148,19 @@ function App() {
   const hashPassword = (password) => btoa(password);
   const verifyPassword = (password, hash) => btoa(password) === hash;
 
-  // ===== LOAD PHOTOS FROM LOCALSTORAGE =====
-  const loadPhotosFromStorage = (childId) => {
-    const stored = localStorage.getItem(`photos_${childId}`);
-    if (stored) {
-      setPhotos(JSON.parse(stored));
-    } else {
+  // ===== LOAD PHOTOS FROM DATABASE =====
+  const loadPhotos = async (childId) => {
+    try {
+      const { data } = await supabase
+        .from('photos')
+        .select('*')
+        .eq('child_id', childId)
+        .order('uploaded_at', { ascending: false });
+      setPhotos(data || []);
+    } catch (err) {
+      console.error('Erreur chargement photos:', err);
       setPhotos([]);
     }
-  };
-
-  // ===== SAVE PHOTOS TO LOCALSTORAGE =====
-  const savePhotosToStorage = (childId, photosArray) => {
-    localStorage.setItem(`photos_${childId}`, JSON.stringify(photosArray));
   };
 
   // ===== PARENT LOGIN =====
@@ -523,20 +523,21 @@ function App() {
 
       if (error) throw error;
 
-      // Créer l'objet photo
-      const newPhoto = {
-        id: Math.random().toString(36),
-        file_path: fileName,
-        caption: caption || 'Sans titre',
-        photo_date: photoDate || new Date().toLocaleDateString(),
-      };
+      // Insérer en base de données
+      const { error: dbError } = await supabase
+        .from('photos')
+        .insert({
+          child_id: selectedChild.id,
+          uploaded_by: user.id,
+          caption: caption || null,
+          photo_date: photoDate,
+          file_path: fileName,
+        });
 
-      // Ajouter à la liste et sauvegarder en localStorage
-      const updatedPhotos = [newPhoto, ...photos];
-      setPhotos(updatedPhotos);
-      savePhotosToStorage(selectedChild.id, updatedPhotos);
+      if (dbError) throw dbError;
 
       e.target.reset();
+      loadPhotos(selectedChild.id);
       alert('✅ Photo ajoutée avec succès !');
     } catch (err) {
       console.error('Erreur upload:', err);
@@ -733,7 +734,7 @@ function App() {
             {children.map(child => (
               <div key={child.id} className="child-card" onClick={() => {
                 setSelectedChild(child);
-                loadPhotosFromStorage(child.id);
+                loadPhotos(child.id);
                 loadAccessRequests(child.id);
                 loadChildAccess(child.id);
                 setView('parent-child');
@@ -1008,7 +1009,7 @@ function App() {
               children.map(child => (
                 <div key={child.id} className="child-card" onClick={() => {
                   setSelectedChild(child);
-                  loadPhotosFromStorage(child.id);
+                  loadPhotos(child.id);
                   setView('relative-photos');
                 }} style={{cursor: 'pointer'}}>
                   {child.profile_picture && <img src={child.profile_picture} alt={child.name} style={{width: '50px', height: '50px', borderRadius: '50%'}} />}
