@@ -27,6 +27,209 @@ function PhotoDisplay({ filePath }) {
   );
 }
 
+// Galerie avec swipe
+function PhotoGallery({ photos, onClose, userType, user, selectedChild }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [loadingComment, setLoadingComment] = useState(false);
+
+  const currentPhoto = photos[currentIndex];
+
+  useEffect(() => {
+    if (currentPhoto) {
+      loadComments(currentPhoto.id);
+    }
+  }, [currentPhoto]);
+
+  const loadComments = async (photoId) => {
+    try {
+      const { data } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('photo_id', photoId)
+        .order('created_at', { ascending: true });
+      setComments(data || []);
+    } catch (err) {
+      console.error('Erreur chargement commentaires:', err);
+    }
+  };
+
+  const handleAddComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim() || !user) return;
+
+    setLoadingComment(true);
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .insert({
+          photo_id: currentPhoto.id,
+          relative_id: user.id,
+          text: newComment,
+        });
+
+      if (error) throw error;
+
+      setNewComment('');
+      loadComments(currentPhoto.id);
+    } catch (err) {
+      console.error('Erreur ajout commentaire:', err);
+      alert('Erreur : ' + err.message);
+    }
+    setLoadingComment(false);
+  };
+
+  const handleTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX);
+  const handleTouchEnd = (e) => {
+    setTouchEnd(e.changedTouches[0].clientX);
+  };
+
+  useEffect(() => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && currentIndex < photos.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    }
+    if (isRightSwipe && currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+    }
+  }, [touchStart, touchEnd, currentIndex, photos.length]);
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: '#000',
+      zIndex: 1000,
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      {/* Header */}
+      <div style={{
+        background: '#1a1a1a',
+        padding: '20px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <span style={{color: '#fff', fontSize: '14px'}}>
+          {currentIndex + 1} / {photos.length}
+        </span>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#fff',
+            fontSize: '24px',
+            cursor: 'pointer'
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Photo */}
+      <div
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden'
+        }}
+      >
+        <img
+          src={`https://wxhcynlcjjdjptoxijhc.supabase.co/storage/v1/object/public/photos/${currentPhoto.file_path}`}
+          alt="fullscreen"
+          style={{
+            maxWidth: '100%',
+            maxHeight: '100%',
+            objectFit: 'contain'
+          }}
+        />
+      </div>
+
+      {/* Infos + Commentaires */}
+      <div style={{
+        background: '#1a1a1a',
+        color: '#fff',
+        padding: '20px',
+        maxHeight: '35%',
+        overflowY: 'auto',
+        borderTop: '1px solid #333'
+      }}>
+        <p style={{marginBottom: '10px', fontSize: '14px', color: '#999'}}>
+          {currentPhoto.caption}
+        </p>
+        {currentPhoto.photo_date && (
+          <p style={{marginBottom: '15px', fontSize: '12px', color: '#666'}}>
+            {new Date(currentPhoto.photo_date).toLocaleDateString()}
+          </p>
+        )}
+
+        {/* Commentaires (visible pour proches) */}
+        {userType === 'relative' && (
+          <div>
+            <h4 style={{marginBottom: '10px', fontSize: '14px'}}>Commentaires</h4>
+            <div style={{marginBottom: '15px', maxHeight: '150px', overflowY: 'auto'}}>
+              {comments.map(comment => (
+                <p key={comment.id} style={{fontSize: '12px', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #333'}}>
+                  <strong style={{color: '#ff6b9d'}}>{comment.relative_id.substring(0, 8)}</strong>: {comment.text}
+                </p>
+              ))}
+            </div>
+
+            <form onSubmit={handleAddComment} style={{display: 'flex', gap: '10px'}}>
+              <input
+                type="text"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Ajouter un commentaire..."
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: '#2d2d2d',
+                  color: '#fff',
+                  fontSize: '12px'
+                }}
+              />
+              <button
+                type="submit"
+                disabled={loadingComment || !newComment.trim()}
+                style={{
+                  padding: '8px 16px',
+                  background: '#ff6b9d',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                ✓
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const translations = {
   fr: {
     appTitle: 'Premier Nuage',
@@ -134,6 +337,8 @@ function App() {
   const [childAccess, setChildAccess] = useState([]);
   const [editingChild, setEditingChild] = useState(null);
   const [editingProfile, setEditingProfile] = useState(null);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   
   const [formData, setFormData] = useState({
     email: '', password: '', name: '', lastName: '', childName: '', birthDate: '',
@@ -512,10 +717,8 @@ function App() {
         return;
       }
 
-      // Générer un nom de fichier unique et sécurisé
       const fileName = `${selectedChild.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
-      // Upload le fichier sur Supabase Storage
       const { data, error } = await supabase
         .storage
         .from('photos')
@@ -523,7 +726,6 @@ function App() {
 
       if (error) throw error;
 
-      // Insérer en base de données
       const { error: dbError } = await supabase
         .from('photos')
         .insert({
@@ -707,7 +909,7 @@ function App() {
               <h2>Proches</h2>
               <form onSubmit={handleRelativeLogin}>
                 <input type="email" placeholder={t.email} value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required />
-                <input type="password" placeholder={t.password} value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} required />
+                <input type="password" placeholder={t.password} value={formData.password} onChange((e) => setFormData({...formData, password: e.target.value})} required />
                 <button type="submit" disabled={loading}>{t.login}</button>
               </form>
               <button onClick={() => setView('relative-join')}>← Retour</button>
@@ -737,7 +939,7 @@ function App() {
                 loadPhotos(child.id);
                 loadAccessRequests(child.id);
                 loadChildAccess(child.id);
-                setView('parent-child');
+                setView('parent-photos');
               }} style={{cursor: 'pointer'}}>
                 {child.profile_picture && <img src={child.profile_picture} alt={child.name} style={{width: '50px', height: '50px', borderRadius: '50%'}} />}
                 <h3>{child.name} {child.last_name}</h3>
@@ -807,46 +1009,132 @@ function App() {
     );
   }
 
-  // ===== PARENT CHILD VIEW =====
-  if (userType === 'parent' && view === 'parent-child' && selectedChild) {
+  // ===== PARENT PHOTOS VIEW (NEW GRID LAYOUT) =====
+  if (userType === 'parent' && view === 'parent-photos' && selectedChild) {
     const daysOld = Math.floor((new Date() - new Date(selectedChild.birth_date)) / (1000 * 60 * 60 * 24));
+    const birthDate = new Date(selectedChild.birth_date);
+    const daysOfWeek = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    const dayOfWeek = daysOfWeek[birthDate.getDay()];
 
     return (
       <div className="app">
-        <div className="family-container">
-          {selectedChild.profile_picture && <img src={selectedChild.profile_picture} alt={selectedChild.name} style={{width: '100px', height: '100px', borderRadius: '50%'}} />}
-          <h1>{selectedChild.name} {selectedChild.last_name}</h1>
-          <p>{daysOld} jours</p>
-          {selectedChild.bio && <p>{selectedChild.bio}</p>}
-
-          <div className="child-info" style={{fontSize: '14px', textAlign: 'left', marginTop: '20px'}}>
-            <p><strong>{t.parent1}:</strong> {selectedChild.parent1_name}</p>
-            {selectedChild.parent2_name && <p><strong>{t.parent2}:</strong> {selectedChild.parent2_name}</p>}
-            {selectedChild.weight && <p><strong>{t.weight}:</strong> {selectedChild.weight}g</p>}
-            {selectedChild.height && <p><strong>{t.height}:</strong> {selectedChild.height}cm</p>}
-            {selectedChild.blood_type && <p><strong>{t.bloodType}:</strong> {selectedChild.blood_type}</p>}
-            {selectedChild.eye_color && <p><strong>{t.eyeColor}:</strong> {selectedChild.eye_color}</p>}
-            {selectedChild.hair_color && <p><strong>{t.hairColor}:</strong> {selectedChild.hair_color}</p>}
-            {selectedChild.allergies && <p><strong>{t.allergies}:</strong> {selectedChild.allergies}</p>}
+        <div className="photos-container" style={{maxWidth: '800px', margin: '0 auto', padding: '20px'}}>
+          
+          {/* En-tête avec info enfant */}
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '20px',
+            marginBottom: '30px',
+            display: 'flex',
+            gap: '20px',
+            alignItems: 'flex-start',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
+            border: '1px solid #ede6e1'
+          }}>
+            {selectedChild.profile_picture && (
+              <img
+                src={selectedChild.profile_picture}
+                alt={selectedChild.name}
+                style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  flexShrink: 0
+                }}
+              />
+            )}
+            <div style={{flex: 1}}>
+              <h2 style={{margin: '0 0 5px 0', fontSize: '1.5rem'}}>{selectedChild.name}</h2>
+              <p style={{margin: '0 0 10px 0', color: '#666', fontSize: '0.9rem'}}>
+                {dayOfWeek} {birthDate.toLocaleDateString()} • {daysOld} jours
+              </p>
+              {selectedChild.bio && (
+                <p style={{margin: 0, color: '#666', fontSize: '0.95rem', fontStyle: 'italic'}}>"{selectedChild.bio}"</p>
+              )}
+            </div>
           </div>
 
-          <div className="qr-section" style={{marginTop: '20px'}}>
-            <h3>Code QR</h3>
-            <QRCode value={selectedChild.qr_code_id} size={200} />
-            <p>{selectedChild.qr_code_id}</p>
+          {/* Formulaire upload photos (parents seulement) */}
+          <form onSubmit={handleAddPhoto} style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '20px',
+            marginBottom: '30px',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
+            border: '1px solid #ede6e1'
+          }}>
+            <h3 style={{marginTop: 0}}>Ajouter une photo</h3>
+            <input type="text" name="caption" placeholder="Légende (optionnel)" style={{width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #ede6e1', borderRadius: '8px'}} />
+            <input type="file" name="photo" accept="image/*,video/*" required style={{width: '100%', marginBottom: '10px'}} />
+            <input type="date" name="photoDate" style={{width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #ede6e1', borderRadius: '8px'}} />
+            <button type="submit" disabled={loading} style={{width: '100%', padding: '12px', background: 'linear-gradient(135deg, #ff6b9d, #ff4d7d)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer'}}>📸 Ajouter photo</button>
+          </form>
+
+          {/* Grille de photos 4 colonnes */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+            gap: '15px',
+            marginBottom: '20px'
+          }}>
+            {photos.map((photo, index) => (
+              <div
+                key={photo.id}
+                onClick={() => {
+                  setGalleryStartIndex(index);
+                  setGalleryOpen(true);
+                }}
+                style={{
+                  cursor: 'pointer',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  aspectRatio: '1',
+                  background: '#f0f0f0',
+                  border: '1px solid #ede6e1'
+                }}
+              >
+                <img
+                  src={`https://wxhcynlcjjdjptoxijhc.supabase.co/storage/v1/object/public/photos/${photo.file_path}`}
+                  alt={photo.caption}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover'
+                  }}
+                  onError={(e) => {
+                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23eee" width="100" height="100"/%3E%3C/svg%3E';
+                  }}
+                />
+              </div>
+            ))}
           </div>
 
-          <div className="tabs" style={{display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap'}}>
-            <button onClick={() => { setEditingChild(selectedChild); setView('parent-edit-child'); }} className="tab-btn">✏️ {t.edit}</button>
-            <button onClick={() => setView('parent-photos')} className="tab-btn">📸 {t.photos}</button>
-            <button onClick={() => setView('parent-access')} className="tab-btn">👥 {t.accessManagement}</button>
-            <button onClick={() => setView('parent-access-requests')} className="tab-btn">📋 {t.accessRequests}</button>
+          {photos.length === 0 && (
+            <p style={{textAlign: 'center', color: '#999', padding: '40px 20px'}}>Aucune photo pour le moment</p>
+          )}
+
+          <div style={{display: 'flex', gap: '10px', marginTop: '30px'}}>
+            <button onClick={() => { setEditingChild(selectedChild); setView('parent-edit-child'); }} style={{flex: 1, padding: '12px', background: '#f8e8d8', border: '1px solid #ede6e1', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'}}>✏️ Modifier profil</button>
+            <button onClick={() => setView('parent-access')} style={{flex: 1, padding: '12px', background: '#f8e8d8', border: '1px solid #ede6e1', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'}}>👥 Accès</button>
+            <button onClick={() => setView('parent-access-requests')} style={{flex: 1, padding: '12px', background: '#f8e8d8', border: '1px solid #ede6e1', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'}}>📋 Demandes</button>
           </div>
 
-          <button onClick={() => handleDeleteChild(selectedChild.id)} style={{marginTop: '20px', background: '#ff6b6b', color: 'white', padding: '12px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '1rem'}}>🗑️ Supprimer le profil</button>
-          <button onClick={() => setView('parent-dashboard')} style={{marginTop: '20px'}}>← Retour</button>
-          <button className="btn-logout" onClick={handleLogout}>{t.logout}</button>
+          <button onClick={() => handleDeleteChild(selectedChild.id)} style={{width: '100%', marginTop: '10px', padding: '12px', background: '#ff6b6b', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'}}>🗑️ Supprimer le profil</button>
+          <button onClick={() => setView('parent-dashboard')} style={{width: '100%', marginTop: '10px', padding: '12px', background: '#f5f5f5', border: '1px solid #ede6e1', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'}}>← Retour</button>
+          <button className="btn-logout" onClick={handleLogout} style={{width: '100%', marginTop: '10px'}}>{t.logout}</button>
         </div>
+
+        {galleryOpen && (
+          <PhotoGallery
+            photos={photos}
+            onClose={() => setGalleryOpen(false)}
+            userType={userType}
+            user={user}
+            selectedChild={selectedChild}
+          />
+        )}
       </div>
     );
   }
@@ -896,38 +1184,7 @@ function App() {
             
             <button type="submit" disabled={loading}>{t.save}</button>
           </form>
-          <button onClick={() => { setEditingChild(null); setView('parent-child'); }}>{t.cancel}</button>
-        </div>
-      </div>
-    );
-  }
-
-  // ===== PARENT PHOTOS =====
-  if (userType === 'parent' && view === 'parent-photos' && selectedChild) {
-    return (
-      <div className="app">
-        <div className="photos-container">
-          <h2>📸 {t.photos}</h2>
-
-          <form onSubmit={handleAddPhoto} className="photo-form">
-            <input type="text" name="caption" placeholder={t.caption} />
-            <input type="file" name="photo" accept="image/*,video/*" required />
-            <input type="date" name="photoDate" placeholder={t.photoDate} />
-            <button type="submit" disabled={loading}>{t.upload}</button>
-          </form>
-
-          <div className="photos-list">
-            {photos.map(photo => (
-              <div key={photo.id} className="photo-card" style={{border: '1px solid #ddd', padding: '15px', margin: '10px 0', borderRadius: '8px'}}>
-                {photo.file_path && <PhotoDisplay filePath={photo.file_path} />}
-                <p style={{marginTop: '10px'}}><strong>{photo.caption || 'Sans titre'}</strong></p>
-                {photo.photo_date && <p>{photo.photo_date}</p>}
-              </div>
-            ))}
-            {photos.length === 0 && <p className="empty">Aucune photo</p>}
-          </div>
-
-          <button onClick={() => setView('parent-child')}>← Retour</button>
+          <button onClick={() => { setEditingChild(null); setView('parent-photos'); }}>{t.cancel}</button>
         </div>
       </div>
     );
@@ -956,7 +1213,7 @@ function App() {
             )}
           </div>
 
-          <button onClick={() => setView('parent-child')}>← Retour</button>
+          <button onClick={() => setView('parent-photos')}>← Retour</button>
         </div>
       </div>
     );
@@ -986,7 +1243,7 @@ function App() {
             )}
           </div>
 
-          <button onClick={() => setView('parent-child')}>← Retour</button>
+          <button onClick={() => setView('parent-photos')}>← Retour</button>
         </div>
       </div>
     );
@@ -1076,38 +1333,113 @@ function App() {
     );
   }
 
-  // ===== RELATIVE PHOTOS =====
+  // ===== RELATIVE PHOTOS VIEW (NEW GRID LAYOUT) =====
   if (userType === 'relative' && view === 'relative-photos' && selectedChild) {
+    const daysOld = Math.floor((new Date() - new Date(selectedChild.birth_date)) / (1000 * 60 * 60 * 24));
+    const birthDate = new Date(selectedChild.birth_date);
+    const daysOfWeek = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    const dayOfWeek = daysOfWeek[birthDate.getDay()];
+
     return (
       <div className="app">
-        <div className="photos-container">
-          <h2>📸 {selectedChild.name}</h2>
-
-          <div className="child-info" style={{fontSize: '14px', textAlign: 'left', marginTop: '20px'}}>
-            {selectedChild.parent1_name && <p><strong>{t.parent1}:</strong> {selectedChild.parent1_name}</p>}
-            {selectedChild.parent2_name && <p><strong>{t.parent2}:</strong> {selectedChild.parent2_name}</p>}
-            {selectedChild.weight && <p><strong>{t.weight}:</strong> {selectedChild.weight}g</p>}
-            {selectedChild.height && <p><strong>{t.height}:</strong> {selectedChild.height}cm</p>}
-            {selectedChild.blood_type && <p><strong>{t.bloodType}:</strong> {selectedChild.blood_type}</p>}
-            {selectedChild.allergies && <p><strong>{t.allergies}:</strong> {selectedChild.allergies}</p>}
-          </div>
-
-          <div className="photos-list" style={{marginTop: '20px'}}>
-            {photos && photos.length > 0 ? (
-              photos.map(photo => (
-                <div key={photo.id} className="photo-card" style={{border: '1px solid #ddd', padding: '15px', margin: '10px 0', borderRadius: '8px'}}>
-                  {photo.file_path && <PhotoDisplay filePath={photo.file_path} />}
-                  <p style={{marginTop: '10px'}}><strong>{photo.caption || 'Sans titre'}</strong></p>
-                  {photo.photo_date && <p>{photo.photo_date}</p>}
-                </div>
-              ))
-            ) : (
-              <p className="empty">Aucune photo</p>
+        <div className="photos-container" style={{maxWidth: '800px', margin: '0 auto', padding: '20px'}}>
+          
+          {/* En-tête avec info enfant */}
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '20px',
+            marginBottom: '30px',
+            display: 'flex',
+            gap: '20px',
+            alignItems: 'flex-start',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
+            border: '1px solid #ede6e1'
+          }}>
+            {selectedChild.profile_picture && (
+              <img
+                src={selectedChild.profile_picture}
+                alt={selectedChild.name}
+                style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  flexShrink: 0
+                }}
+              />
             )}
+            <div style={{flex: 1}}>
+              <h2 style={{margin: '0 0 5px 0', fontSize: '1.5rem'}}>{selectedChild.name}</h2>
+              <p style={{margin: '0 0 10px 0', color: '#666', fontSize: '0.9rem'}}>
+                {dayOfWeek} {birthDate.toLocaleDateString()} • {daysOld} jours
+              </p>
+              {selectedChild.bio && (
+                <p style={{margin: 0, color: '#666', fontSize: '0.95rem', fontStyle: 'italic'}}>"{selectedChild.bio}"</p>
+              )}
+            </div>
           </div>
 
-          <button onClick={() => setView('relative-dashboard')}>← Retour</button>
+          {/* Grille de photos 4 colonnes (proches = pas d'upload) */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+            gap: '15px',
+            marginBottom: '20px'
+          }}>
+            {photos.map((photo, index) => (
+              <div
+                key={photo.id}
+                onClick={() => {
+                  setGalleryStartIndex(index);
+                  setGalleryOpen(true);
+                }}
+                style={{
+                  cursor: 'pointer',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  aspectRatio: '1',
+                  background: '#f0f0f0',
+                  border: '1px solid #ede6e1'
+                }}
+              >
+                <img
+                  src={`https://wxhcynlcjjdjptoxijhc.supabase.co/storage/v1/object/public/photos/${photo.file_path}`}
+                  alt={photo.caption}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover'
+                  }}
+                  onError={(e) => {
+                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23eee" width="100" height="100"/%3E%3C/svg%3E';
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+
+          {photos.length === 0 && (
+            <p style={{textAlign: 'center', color: '#999', padding: '40px 20px'}}>Aucune photo pour le moment</p>
+          )}
+
+          <div style={{display: 'flex', gap: '10px', marginTop: '30px'}}>
+            <button onClick={() => { setEditingProfile(user); setView('relative-edit-profile'); }} style={{flex: 1, padding: '12px', background: '#f8e8d8', border: '1px solid #ede6e1', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'}}>✏️ Mon profil</button>
+          </div>
+
+          <button onClick={() => setView('relative-dashboard')} style={{width: '100%', marginTop: '10px', padding: '12px', background: '#f5f5f5', border: '1px solid #ede6e1', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'}}>← Retour</button>
+          <button className="btn-logout" onClick={handleLogout} style={{width: '100%', marginTop: '10px'}}>{t.logout}</button>
         </div>
+
+        {galleryOpen && (
+          <PhotoGallery
+            photos={photos}
+            onClose={() => setGalleryOpen(false)}
+            userType={userType}
+            user={user}
+            selectedChild={selectedChild}
+          />
+        )}
       </div>
     );
   }
