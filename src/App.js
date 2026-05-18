@@ -353,7 +353,6 @@ function App() {
   const hashPassword = (password) => btoa(password);
   const verifyPassword = (password, hash) => btoa(password) === hash;
 
-  // ===== LOAD PHOTOS FROM DATABASE =====
   const loadPhotos = async (childId) => {
     try {
       const { data } = await supabase
@@ -368,7 +367,6 @@ function App() {
     }
   };
 
-  // ===== PARENT LOGIN =====
   const handleParentLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -397,7 +395,6 @@ function App() {
     setLoading(false);
   };
 
-  // ===== PARENT SIGNUP =====
   const handleParentSignup = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -420,7 +417,6 @@ function App() {
     setLoading(false);
   };
 
-  // ===== RELATIVE LOGIN =====
   const handleRelativeLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -449,7 +445,6 @@ function App() {
     setLoading(false);
   };
 
-  // ===== RELATIVE SIGNUP VIA QR =====
   const handleRelativeSignupViaQR = async (qrCodeId) => {
     setLoading(true);
     try {
@@ -500,7 +495,6 @@ function App() {
     setLoading(false);
   };
 
-  // ===== RELATIVE ADD CHILD VIA QR (already logged in) =====
   const handleRelativeAddChildViaQR = async (qrCodeId) => {
     setLoading(true);
     try {
@@ -533,7 +527,6 @@ function App() {
     setLoading(false);
   };
 
-  // ===== LOAD DATA =====
   const loadParentChildren = async (parentId) => {
     const { data } = await supabase
       .from('children')
@@ -572,7 +565,6 @@ function App() {
     }
   };
 
-  // ===== PARENT CREATE CHILD =====
   const handleCreateChild = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -609,7 +601,6 @@ function App() {
     setLoading(false);
   };
 
-  // ===== PARENT EDIT CHILD =====
   const handleEditChild = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -644,7 +635,6 @@ function App() {
     setLoading(false);
   };
 
-  // ===== DELETE CHILD =====
   const handleDeleteChild = async (childId) => {
     const confirmed = window.confirm(`Êtes-vous sûr de vouloir supprimer le profil de ${selectedChild.name} ? Cette action est irréversible.`);
     
@@ -668,7 +658,6 @@ function App() {
     setLoading(false);
   };
 
-  // ===== RELATIVE EDIT PROFILE =====
   const handleEditProfile = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -699,7 +688,6 @@ function App() {
     setLoading(false);
   };
 
-  // ===== ADD PHOTO =====
   const handleAddPhoto = async (e) => {
     e.preventDefault();
     if (!selectedChild) return;
@@ -748,7 +736,6 @@ function App() {
     setLoading(false);
   };
 
-  // ===== APPROVE/DENY ACCESS =====
   const handleApproveAccess = async (requestId, relativeId) => {
     setLoading(true);
     try {
@@ -824,7 +811,6 @@ function App() {
     setSelectedChild(null);
   };
 
-  // ===== RENDER AUTH =====
   if (!user) {
     return (
       <div className="app">
@@ -909,7 +895,7 @@ function App() {
               <h2>Proches</h2>
               <form onSubmit={handleRelativeLogin}>
                 <input type="email" placeholder={t.email} value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required />
-                <input type="password" placeholder={t.password} value={formData.password} onChange((e) => setFormData({...formData, password: e.target.value})} required />
+                <input type="password" placeholder={t.password} value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} required />
                 <button type="submit" disabled={loading}>{t.login}</button>
               </form>
               <button onClick={() => setView('relative-join')}>← Retour</button>
@@ -920,7 +906,6 @@ function App() {
     );
   }
 
-  // ===== PARENT DASHBOARD =====
   if (userType === 'parent' && view === 'parent-dashboard') {
     return (
       <div className="app">
@@ -955,7 +940,6 @@ function App() {
     );
   }
 
-  // ===== PARENT CREATE CHILD =====
   if (userType === 'parent' && view === 'parent-create-child') {
     return (
       <div className="app">
@@ -1009,7 +993,6 @@ function App() {
     );
   }
 
-  // ===== PARENT PHOTOS VIEW (NEW GRID LAYOUT) =====
   if (userType === 'parent' && view === 'parent-photos' && selectedChild) {
     const daysOld = Math.floor((new Date() - new Date(selectedChild.birth_date)) / (1000 * 60 * 60 * 24));
     const birthDate = new Date(selectedChild.birth_date);
@@ -1020,7 +1003,6 @@ function App() {
       <div className="app">
         <div className="photos-container" style={{maxWidth: '800px', margin: '0 auto', padding: '20px'}}>
           
-          {/* En-tête avec info enfant */}
           <div style={{
             background: 'white',
             borderRadius: '12px',
@@ -1056,7 +1038,6 @@ function App() {
             </div>
           </div>
 
-          {/* Formulaire upload photos (parents seulement) */}
           <form onSubmit={handleAddPhoto} style={{
             background: 'white',
             borderRadius: '12px',
@@ -1072,7 +1053,6 @@ function App() {
             <button type="submit" disabled={loading} style={{width: '100%', padding: '12px', background: 'linear-gradient(135deg, #ff6b9d, #ff4d7d)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer'}}>📸 Ajouter photo</button>
           </form>
 
-          {/* Grille de photos 4 colonnes */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
@@ -1139,7 +1119,6 @@ function App() {
     );
   }
 
-  // ===== PARENT EDIT CHILD =====
   if (userType === 'parent' && view === 'parent-edit-child' && editingChild) {
     return (
       <div className="app">
@@ -1190,7 +1169,6 @@ function App() {
     );
   }
 
-  // ===== PARENT ACCESS MANAGEMENT =====
   if (userType === 'parent' && view === 'parent-access' && selectedChild) {
     return (
       <div className="app">
@@ -1219,7 +1197,6 @@ function App() {
     );
   }
 
-  // ===== PARENT ACCESS REQUESTS =====
   if (userType === 'parent' && view === 'parent-access-requests' && selectedChild) {
     return (
       <div className="app">
@@ -1249,7 +1226,6 @@ function App() {
     );
   }
 
-  // ===== RELATIVE DASHBOARD =====
   if (userType === 'relative' && view === 'relative-dashboard') {
     return (
       <div className="app">
@@ -1287,7 +1263,6 @@ function App() {
     );
   }
 
-  // ===== RELATIVE ADD CHILD VIA QR =====
   if (userType === 'relative' && view === 'relative-add-child') {
     return (
       <div className="app">
@@ -1306,7 +1281,6 @@ function App() {
     );
   }
 
-  // ===== RELATIVE EDIT PROFILE =====
   if (userType === 'relative' && view === 'relative-edit-profile' && editingProfile) {
     return (
       <div className="app">
@@ -1333,7 +1307,6 @@ function App() {
     );
   }
 
-  // ===== RELATIVE PHOTOS VIEW (NEW GRID LAYOUT) =====
   if (userType === 'relative' && view === 'relative-photos' && selectedChild) {
     const daysOld = Math.floor((new Date() - new Date(selectedChild.birth_date)) / (1000 * 60 * 60 * 24));
     const birthDate = new Date(selectedChild.birth_date);
@@ -1344,7 +1317,6 @@ function App() {
       <div className="app">
         <div className="photos-container" style={{maxWidth: '800px', margin: '0 auto', padding: '20px'}}>
           
-          {/* En-tête avec info enfant */}
           <div style={{
             background: 'white',
             borderRadius: '12px',
@@ -1380,7 +1352,6 @@ function App() {
             </div>
           </div>
 
-          {/* Grille de photos 4 colonnes (proches = pas d'upload) */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
