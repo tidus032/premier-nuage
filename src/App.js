@@ -1,4 +1,3 @@
-// Redesign Instagram 2026
 /* eslint-disable */
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -20,7 +19,7 @@ function PhotoDisplay({ filePath }) {
     <img 
       src={imageUrl} 
       alt="photo" 
-      style={{width: '100%', borderRadius: '9px', maxHeight: '400px', objectFit: 'cover'}} 
+      style={{width: '100%', borderRadius: '8px', maxHeight: '400px', objectFit: 'cover'}} 
       onError={(e) => {
         e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23eee" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" fill="%23999" font-size="12"%3EPhoto non trouvée%3C/text%3E%3C/svg%3E';
       }}
@@ -440,6 +439,30 @@ function App() {
     setLoading(false);
   };
 
+  // ===== DELETE CHILD =====
+  const handleDeleteChild = async (childId) => {
+    const confirmed = window.confirm(`Êtes-vous sûr de vouloir supprimer le profil de ${selectedChild.name} ? Cette action est irréversible.`);
+    
+    if (!confirmed) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('children')
+        .delete()
+        .eq('id', childId);
+
+      if (error) throw error;
+
+      alert('Profil supprimé avec succès');
+      loadParentChildren(user.id);
+      setView('parent-dashboard');
+    } catch (err) {
+      alert('Erreur : ' + err.message);
+    }
+    setLoading(false);
+  };
+
   // ===== RELATIVE EDIT PROFILE =====
   const handleEditProfile = async (e) => {
     e.preventDefault();
@@ -598,7 +621,7 @@ function App() {
     setSelectedChild(null);
   };
 
-// ===== RENDER AUTH =====
+  // ===== RENDER AUTH =====
   if (!user) {
     return (
       <div className="app">
@@ -767,7 +790,7 @@ function App() {
             <input type="text" placeholder={t.eyeColor} value={formData.eyeColor} onChange={(e) => setFormData({...formData, eyeColor: e.target.value})} />
             
             <label>{t.hairColor}</label>
-            <input type="text" placeholder={t.hairColor} value={formData.hairColor} onChange={(e) => setFormData({...formData, hairColor: e.target.value})} />
+            <input type="text" placeholder={t.hairColor} value={formData.hairColor} onChange((e) => setFormData({...formData, hairColor: e.target.value})} />
             
             <label>{t.allergies}</label>
             <input type="text" placeholder={t.allergies} value={formData.allergies} onChange={(e) => setFormData({...formData, allergies: e.target.value})} />
@@ -819,6 +842,7 @@ function App() {
             <button onClick={() => setView('parent-access-requests')} className="tab-btn">📋 {t.accessRequests}</button>
           </div>
 
+          <button onClick={() => handleDeleteChild(selectedChild.id)} style={{marginTop: '20px', background: '#ff6b6b', color: 'white', padding: '12px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '1rem'}}>🗑️ Supprimer le profil</button>
           <button onClick={() => setView('parent-dashboard')} style={{marginTop: '20px'}}>← Retour</button>
           <button className="btn-logout" onClick={handleLogout}>{t.logout}</button>
         </div>
