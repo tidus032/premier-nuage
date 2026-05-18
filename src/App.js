@@ -148,6 +148,21 @@ function App() {
   const hashPassword = (password) => btoa(password);
   const verifyPassword = (password, hash) => btoa(password) === hash;
 
+  // ===== LOAD PHOTOS FROM LOCALSTORAGE =====
+  const loadPhotosFromStorage = (childId) => {
+    const stored = localStorage.getItem(`photos_${childId}`);
+    if (stored) {
+      setPhotos(JSON.parse(stored));
+    } else {
+      setPhotos([]);
+    }
+  };
+
+  // ===== SAVE PHOTOS TO LOCALSTORAGE =====
+  const savePhotosToStorage = (childId, photosArray) => {
+    localStorage.setItem(`photos_${childId}`, JSON.stringify(photosArray));
+  };
+
   // ===== PARENT LOGIN =====
   const handleParentLogin = async (e) => {
     e.preventDefault();
@@ -476,7 +491,7 @@ function App() {
       // Générer un nom de fichier unique et sécurisé
       const fileName = `${selectedChild.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
-      // Upload le fichier sur Supabase Storage - C'EST TOUT
+      // Upload le fichier sur Supabase Storage
       const { data, error } = await supabase
         .storage
         .from('photos')
@@ -484,7 +499,7 @@ function App() {
 
       if (error) throw error;
 
-      // Créer l'objet photo EN MÉMOIRE SEULEMENT (pas d'insert en base)
+      // Créer l'objet photo
       const newPhoto = {
         id: Math.random().toString(36),
         file_path: fileName,
@@ -492,8 +507,10 @@ function App() {
         photo_date: photoDate || new Date().toLocaleDateString(),
       };
 
-      // Ajouter à la liste locale
-      setPhotos([newPhoto, ...photos]);
+      // Ajouter à la liste et sauvegarder en localStorage
+      const updatedPhotos = [newPhoto, ...photos];
+      setPhotos(updatedPhotos);
+      savePhotosToStorage(selectedChild.id, updatedPhotos);
 
       e.target.reset();
       alert('✅ Photo ajoutée avec succès !');
@@ -692,7 +709,7 @@ function App() {
             {children.map(child => (
               <div key={child.id} className="child-card" onClick={() => {
                 setSelectedChild(child);
-                setPhotos([]);
+                loadPhotosFromStorage(child.id);
                 loadAccessRequests(child.id);
                 loadChildAccess(child.id);
                 setView('parent-child');
@@ -966,7 +983,7 @@ function App() {
               children.map(child => (
                 <div key={child.id} className="child-card" onClick={() => {
                   setSelectedChild(child);
-                  setPhotos([]);
+                  loadPhotosFromStorage(child.id);
                   setView('relative-photos');
                 }} style={{cursor: 'pointer'}}>
                   {child.profile_picture && <img src={child.profile_picture} alt={child.name} style={{width: '50px', height: '50px', borderRadius: '50%'}} />}
