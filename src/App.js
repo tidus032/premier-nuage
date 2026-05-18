@@ -598,12 +598,12 @@ function App() {
     setSelectedChild(null);
   };
 
-  // ===== RENDER AUTH =====
+// ===== RENDER AUTH =====
   if (!user) {
     return (
       <div className="app">
         <div className="auth-container">
-          <h1>{t.appTitle}</h1>
+          <img src="/logo.png" alt="Premier Nuage" style={{width: '200px', height: 'auto', margin: '0 auto 30px', display: 'block'}} />
           <div className="language-switcher">
             <button onClick={() => setLanguage('fr')} className={language === 'fr' ? 'active' : ''}>FR</button>
             <button onClick={() => setLanguage('en')} className={language === 'en' ? 'active' : ''}>EN</button>
