@@ -1,3 +1,4 @@
+// Redesign Instagram 2026
 /* eslint-disable */
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -19,7 +20,7 @@ function PhotoDisplay({ filePath }) {
     <img 
       src={imageUrl} 
       alt="photo" 
-      style={{width: '100%', borderRadius: '8px', maxHeight: '400px', objectFit: 'cover'}} 
+      style={{width: '100%', borderRadius: '9px', maxHeight: '400px', objectFit: 'cover'}} 
       onError={(e) => {
         e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23eee" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" fill="%23999" font-size="12"%3EPhoto non trouvée%3C/text%3E%3C/svg%3E';
       }}
